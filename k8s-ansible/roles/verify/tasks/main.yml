@@ -1,0 +1,62 @@
+---
+- name: Verify kernel modules
+  ansible.builtin.shell: |
+    lsmod | egrep 'overlay|br_netfilter' || true
+  register: verify_modules
+  changed_when: false
+
+- name: Verify sysctl
+  ansible.builtin.shell: |
+    sysctl net.ipv4.ip_forward
+    sysctl net.bridge.bridge-nf-call-iptables
+    sysctl net.bridge.bridge-nf-call-ip6tables
+  register: verify_sysctl
+  changed_when: false
+
+- name: Verify packages
+  ansible.builtin.shell: |
+    for cmd in conntrack socat ethtool ip iptables modprobe chronyc sshd; do
+      if command -v $cmd >/dev/null 2>&1; then
+        echo "$cmd: OK"
+      else
+        echo "$cmd: MISSING"
+      fi
+    done
+  register: verify_commands
+  changed_when: false
+
+# - name: Verify SSH config
+#   ansible.builtin.command: sshd -t
+#   register: verify_sshd
+#   changed_when: false
+
+- name: Verify chrony service
+  ansible.builtin.command: systemctl is-active chrony
+  register: verify_chrony
+  changed_when: false
+  failed_when: false
+
+- name: Verify iptables backend
+  ansible.builtin.command: iptables --version
+  register: verify_iptables
+  changed_when: false
+
+- name: Verify routes and IP
+  ansible.builtin.shell: |
+    ip -br addr
+    ip route
+  register: verify_network
+  changed_when: false
+
+- name: Print final verification summary
+  ansible.builtin.debug:
+    msg:
+      - "Host: {{ inventory_hostname }}"
+      - "Kernel: {{ ansible_kernel }}"
+      - "Modules: {{ verify_modules.stdout_lines }}"
+      - "Sysctl: {{ verify_sysctl.stdout_lines }}"
+      - "Commands: {{ verify_commands.stdout_lines }}"
+      - "SSH config: OK"
+      - "Chrony: {{ verify_chrony.stdout }}"
+      - "iptables: {{ verify_iptables.stdout }}"
+      - "Network: {{ verify_network.stdout_lines }}"

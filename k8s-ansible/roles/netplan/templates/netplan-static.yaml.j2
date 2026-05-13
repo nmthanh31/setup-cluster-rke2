@@ -1,0 +1,32 @@
+# Cấu hình mạng tĩnh
+network:
+  version: 2
+  renderer: {{ netplan_renderer }}
+  ethernets:
+    # Interface chính của hệ thống
+    {{ netplan_interface }}:
+      dhcp4: false
+      dhcp6: false
+      # Danh sách địa chỉ IP (CIDR)
+      addresses:
+{% for address in netplan_addresses %}
+        - {{ address }}
+{% endfor %}
+      # Cấu hình Default Gateway
+      routes:
+        - to: default
+          via: {{ netplan_gateway4 }}
+      # Cấu hình DNS Servers
+      nameservers:
+        addresses:
+{% for ns in netplan_nameservers.addresses %}
+          - {{ ns }}
+{% endfor %}
+{% if netplan_nameservers.search is defined and netplan_nameservers.search | length > 0 %}
+        search:
+{% for domain in netplan_nameservers.search %}
+          - {{ domain }}
+{% endfor %}
+{% endif %}
+      # Kích thước gói tin tối đa
+      mtu: {{ netplan_mtu }}

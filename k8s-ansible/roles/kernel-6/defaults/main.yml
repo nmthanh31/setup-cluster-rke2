@@ -1,0 +1,3 @@
+---
+kernel_6_reboot: true
+kernel_6_package: "linux-generic-hwe-{{ ansible_distribution_version }}"

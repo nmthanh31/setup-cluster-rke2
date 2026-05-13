@@ -1,0 +1,54 @@
+---
+- name: Resolve Ubuntu HWE kernel package
+  ansible.builtin.set_fact:
+    k8s_hwe_kernel_package: "{{ k8s_hwe_kernel_packages[ansible_facts['distribution_version']] }}"
+  when:
+    - k8s_hwe_kernel_enabled | bool
+    - ansible_facts["distribution"] == "Ubuntu"
+    - ansible_facts["distribution_version"] in k8s_hwe_kernel_packages
+
+- name: Install Ubuntu HWE kernel 6.x package
+  ansible.builtin.apt:
+    name: "{{ k8s_hwe_kernel_package }}"
+    state: latest
+    install_recommends: true
+  register: k8s_hwe_kernel_install
+  when:
+    - k8s_hwe_kernel_enabled | bool
+    - k8s_hwe_kernel_package is defined
+
+- name: Check if reboot is required after kernel update
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: k8s_reboot_required
+  when: k8s_hwe_kernel_enabled | bool
+
+- name: Reboot after HWE kernel update when enabled
+  ansible.builtin.reboot:
+    msg: "Rebooting to activate Ubuntu HWE kernel"
+    reboot_timeout: 900
+  when:
+    - k8s_hwe_kernel_enabled | bool
+    - k8s_hwe_kernel_reboot | bool
+    - k8s_reboot_required.stat.exists | default(false)
+
+- name: Load required kernel modules immediately
+  ansible.builtin.command: "modprobe {{ item }}"
+  loop: "{{ k8s_kernel_modules }}"
+  changed_when: false
+
+- name: Persist required kernel modules after reboot
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k8s.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {% for module in k8s_kernel_modules %}
+      {{ module }}
+      {% endfor %}
+
+- name: Verify required kernel modules are available
+  ansible.builtin.command: "modinfo {{ item }}"
+  loop: "{{ k8s_kernel_modules }}"
+  changed_when: false

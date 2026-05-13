@@ -1,0 +1,31 @@
+---
+- name: Tạo thư mục chứa artifacts cho RKE2 trên server
+  ansible.builtin.file:
+    path: /root/rke2-artifacts
+    state: directory
+    mode: '0755'
+
+- name: Đẩy các file RKE2 từ máy local lên server (Có thể mất thời gian do file nặng)
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop:
+    - { src: "{{ rke2_local_images[0] }}", dest: "/root/rke2-artifacts/rke2-images.linux-amd64.tar.zst" }
+    - { src: "{{ rke2_local_binary_bundle }}", dest: "/root/rke2-artifacts/rke2.linux-amd64.tar.gz" }
+    - { src: "{{ rke2_local_install_script }}", dest: "/root/rke2-artifacts/install.sh", mode: "0755" }
+    - { src: "{{ rke2_local_checksum }}", dest: "/root/rke2-artifacts/sha256sum-amd64.txt"}
+
+- name: Đảm bảo thư mục images chuẩn của RKE2 tồn tại
+  ansible.builtin.file:
+    path: /var/lib/rancher/rke2/agent/images
+    state: directory
+    mode: '0755'
+    recurse: yes
+
+- name: Copy file image vào thư mục agent/images để chuẩn bị cài air-gap
+  ansible.builtin.copy:
+    src: "/root/rke2-artifacts/rke2-images.linux-amd64.tar.zst"
+    dest: /var/lib/rancher/rke2/agent/images/
+    remote_src: yes
+

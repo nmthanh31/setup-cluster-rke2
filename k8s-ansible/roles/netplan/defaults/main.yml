@@ -1,0 +1,3 @@
+---
+netplan_enabled: true
+netplan_apply: false

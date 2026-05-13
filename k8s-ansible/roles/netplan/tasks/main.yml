@@ -1,0 +1,49 @@
+---
+- name: Assert netplan variables are defined
+  ansible.builtin.assert:
+    that:
+      - netplan_interface is defined
+      - netplan_addresses is defined
+      - netplan_gateway4 is defined
+    fail_msg: "Thiếu biến cấu hình mạng cho host này. Vui lòng kiểm tra host_vars!"
+
+- name: Check if interface exists on target host
+  ansible.builtin.assert:
+    that:
+      - "netplan_interface in ansible_interfaces"
+    fail_msg: "Interface '{{ netplan_interface }}' không tồn tại trên máy {{ inventory_hostname }}. Danh sách hiện có: {{ ansible_interfaces }}"
+
+- name: Backup existing netplan files
+  ansible.builtin.shell: |
+    mkdir -p /root/netplan-backup
+    cp -a /etc/netplan/*.yaml /root/netplan-backup/ 2>/dev/null || true
+  changed_when: false
+
+- name: Deploy static netplan config
+  ansible.builtin.template:
+    src: netplan-static.yaml.j2
+    dest: "{{ netplan_config_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+    backup: true
+
+- name: Validate netplan config
+  ansible.builtin.command: netplan generate
+  changed_when: false
+
+- name: Apply netplan config only when enabled
+  ansible.builtin.command: netplan apply
+  when: netplan_apply | bool
+  changed_when: true
+
+- name: Post-apply connectivity check
+  ansible.builtin.wait_for_connection:
+    timeout: 30
+    delay: 5
+  when: netplan_apply | bool
+
+- name: Show netplan apply skipped warning
+  ansible.builtin.debug:
+    msg: "Netplan config deployed and validated, but not applied. Run with -e netplan_apply=true to apply."
+  when: not netplan_apply | bool

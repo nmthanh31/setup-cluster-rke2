@@ -1,0 +1,6 @@
+---
+chrony_enabled: true
+chrony_timezone: "Asia/Ho_Chi_Minh"
+chrony_ntp_servers:
+  - "0.pool.ntp.org"
+  - "1.pool.ntp.org"

@@ -1,0 +1,34 @@
+---
+- name: Install chrony
+  ansible.builtin.apt:
+    name: chrony
+    state: present
+
+- name: Set timezone
+  ansible.builtin.command: "timedatectl set-timezone {{ chrony_timezone }}"
+  changed_when: false
+
+- name: Deploy chrony config
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Restart chrony
+
+- name: Enable and start chrony
+  ansible.builtin.systemd:
+    name: chrony
+    enabled: true
+    state: started
+
+- name: Check timedatectl
+  ansible.builtin.command: timedatectl
+  register: timedatectl_result
+  changed_when: false
+
+- name: Show time sync status
+  ansible.builtin.debug:
+    var: timedatectl_result.stdout_lines

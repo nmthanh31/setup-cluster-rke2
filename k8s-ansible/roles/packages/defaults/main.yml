@@ -1,0 +1,12 @@
+---
+k8s_apt_upgrade_enabled: false
+k8s_base_packages:
+  - curl
+  - vim
+  - git
+  - wget
+  - software-properties-common
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release

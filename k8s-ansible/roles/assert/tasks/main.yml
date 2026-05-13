@@ -1,0 +1,47 @@
+---
+- name: Assert supported OS
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution in k8s_supported_distributions
+      - ansible_distribution_version in k8s_supported_versions
+    fail_msg: "Unsupported OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+    success_msg: "Supported OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+- name: Assert SSH public key is provided before disabling passwords
+  ansible.builtin.assert:
+    that:
+      - ssh_authorized_keys is defined
+      - ssh_authorized_keys | length > 0
+      - "'REPLACE_WITH_REAL_PUBLIC_KEY' not in (ssh_authorized_keys | join(' '))"
+    fail_msg: "SSH hardening disables password auth, but ssh_authorized_keys is empty or still a placeholder."
+  when:
+    - ssh_hardening_enabled | bool
+    - ssh_password_authentication == "no"
+    - "'all' in ansible_run_tags or 'ssh' in ansible_run_tags or 'hardening' in ansible_run_tags"
+
+- name: Assert SSH allow users includes SSH user
+  ansible.builtin.assert:
+    that:
+      - ssh_allow_users is not defined or ssh_user in ssh_allow_users
+    fail_msg: "ssh_allow_users is set but does not include ssh_user={{ ssh_user }}."
+  when: ssh_hardening_enabled | bool
+
+- name: Assert netplan variables are defined
+  ansible.builtin.assert:
+    that:
+      - netplan_interface is defined
+      - netplan_addresses is defined
+      - netplan_addresses | length > 0
+      - netplan_gateway4 is defined
+    fail_msg: "Missing netplan vars. Define netplan_interface, netplan_addresses, netplan_gateway4 in host_vars."
+  when: netplan_enabled | bool
+
+
+- name: Show node baseline
+  ansible.builtin.debug:
+    msg:
+      - "Host: {{ inventory_hostname }}"
+      - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+      - "Kernel: {{ ansible_kernel }}"
+      - "Architecture: {{ ansible_architecture }}"
+      - "Primary IPv4: {{ ansible_default_ipv4.address | default('unknown') }}"

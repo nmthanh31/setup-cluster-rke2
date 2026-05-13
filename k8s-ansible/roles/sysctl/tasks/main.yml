@@ -1,0 +1,35 @@
+---
+- name: Write Kubernetes sysctl config
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-kubernetes.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {% for key, value in k8s_sysctl_params.items() %}
+      {{ key }}={{ value }}
+      {% endfor %}
+
+- name: Apply sysctl config
+  ansible.builtin.command: sysctl --system
+  changed_when: false
+
+- name: Verify Kubernetes sysctl params
+  ansible.builtin.command: "sysctl {{ item.key }}"
+  loop: "{{ k8s_sysctl_params | dict2items }}"
+  register: sysctl_verify
+  changed_when: false
+
+- name: Show sysctl result
+  ansible.builtin.debug:
+    var: sysctl_verify.results | map(attribute='stdout') | list
+
+- name: Disable swap immediately
+  ansible.builtin.command: swapoff -a
+  when: ansible_swaptotal_mb > 0
+
+- name: Disable swap permanently in fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'

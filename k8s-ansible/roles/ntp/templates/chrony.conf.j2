@@ -1,0 +1,24 @@
+# Danh sách các NTP server để đồng bộ thời gian
+{% for server in chrony_ntp_servers %}
+server {{ server }} iburst
+{% endfor %}
+
+# Tệp lưu trữ tốc độ sai lệch của đồng hồ hệ thống để bù đắp khi khởi động
+driftfile /var/lib/chrony/chrony.drift
+
+# Cho phép hệ thống "nhảy" thời gian (step) nếu sai lệch > 1 giây 
+# nhưng chỉ thực hiện trong 3 lần cập nhật đầu tiên.
+# Giúp Cluster đồng bộ cực nhanh khi vừa mới cài đặt hoặc reboot.
+makestep 1.0 3
+
+# Đồng bộ thời gian vào đồng hồ phần cứng (RTC) của máy chủ
+rtcsync
+
+# Đường dẫn file chứa khóa bảo mật (mặc định)
+keyfile /etc/chrony/chrony.keys
+
+# Cấu hình múi giờ cho giây nhuận
+leapsectz right/UTC
+
+# Thư mục lưu trữ log của chrony
+logdir /var/log/chrony

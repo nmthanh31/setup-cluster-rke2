@@ -1,0 +1,80 @@
+---
+- name: Get current static hostname
+  ansible.builtin.command:
+    argv:
+      - hostnamectl
+      - --static
+      - status
+  register: current_static_hostname
+  changed_when: false
+  when: node_hostname is defined
+
+- name: Get current runtime hostname
+  ansible.builtin.command:
+    argv:
+      - hostname
+  register: current_runtime_hostname
+  changed_when: false
+  when: node_hostname is defined
+
+- name: Set system hostname immediately with hostnamectl
+  ansible.builtin.command:
+    argv:
+      - hostnamectl
+      - set-hostname
+      - "{{ node_hostname }}"
+  changed_when: true
+  when:
+    - node_hostname is defined
+    - current_static_hostname.stdout != node_hostname or current_runtime_hostname.stdout != node_hostname
+
+- name: Verify static hostname
+  ansible.builtin.command:
+    argv:
+      - hostnamectl
+      - --static
+      - status
+  register: hostnamectl_verify
+  changed_when: false
+  failed_when: hostnamectl_verify.stdout != node_hostname
+  when: node_hostname is defined
+
+- name: Verify runtime hostname command
+  ansible.builtin.command:
+    argv:
+      - hostname
+  register: hostname_verify
+  changed_when: false
+  failed_when: hostname_verify.stdout != node_hostname
+  when: node_hostname is defined
+
+- name: Show hostname result
+  ansible.builtin.debug:
+    msg:
+      - "inventory_hostname={{ inventory_hostname }}"
+      - "node_hostname={{ node_hostname }}"
+      - "hostnamectl_static={{ hostnamectl_verify.stdout }}"
+      - "hostname={{ hostname_verify.stdout }}"
+  when: node_hostname is defined
+
+- name: Manage Kubernetes static host records
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED K8S HOSTS"
+    owner: root
+    group: root
+    mode: "0644"
+    block: |
+      {% for item in k8s_hosts_entries %}
+      {{ item.ip }} {{ item.names | join(' ') }}
+      {% endfor %}
+
+- name: Verify host resolution
+  ansible.builtin.command: "getent hosts {{ item.names[0] }}"
+  loop: "{{ k8s_hosts_entries }}"
+  register: hosts_resolve_check
+  changed_when: false
+
+- name: Show host resolve result
+  ansible.builtin.debug:
+    var: hosts_resolve_check.results | map(attribute='stdout') | list

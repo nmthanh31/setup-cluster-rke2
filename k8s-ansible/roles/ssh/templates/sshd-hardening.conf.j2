@@ -1,0 +1,22 @@
+Port {{ ssh_port }}
+
+PubkeyAuthentication {{ ssh_pubkey_authentication }}
+PasswordAuthentication {{ ssh_password_authentication }}
+KbdInteractiveAuthentication {{ ssh_kbd_interactive_authentication }}
+ChallengeResponseAuthentication {{ ssh_challenge_response_authentication }}
+
+PermitRootLogin {{ ssh_permit_root_login }}
+PermitEmptyPasswords no
+
+X11Forwarding {{ ssh_x11_forwarding }}
+AllowTcpForwarding {{ ssh_allow_tcp_forwarding }}
+
+ClientAliveInterval {{ ssh_client_alive_interval }}
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+MaxAuthTries {{ ssh_max_auth_tries }}
+
+UsePAM yes
+
+{% if ssh_allow_users is defined and ssh_allow_users | length > 0 %}
+AllowUsers {% for user in ssh_allow_users %}{{ user }} {% endfor %}
+{% endif %}

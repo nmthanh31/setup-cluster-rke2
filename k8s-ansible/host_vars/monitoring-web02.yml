@@ -1,0 +1,9 @@
+---
+node_hostname: "Kubernetes-cp03"
+rke2_node_type: server
+rke2_server_init: false
+
+netplan_interface: "ens160"
+netplan_addresses:
+  - "172.23.0.24/24"
+netplan_gateway4: "172.23.0.1"

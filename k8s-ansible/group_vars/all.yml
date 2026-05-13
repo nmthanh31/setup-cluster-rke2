@@ -1,0 +1,121 @@
+---
+k8s_supported_distributions:
+  - Ubuntu
+
+k8s_supported_versions:
+  - "22.04"
+  - "24.04"
+
+k8s_apt_upgrade_enabled: false
+
+k8s_base_packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - conntrack
+  - socat
+  - ethtool
+  - iproute2
+  - iptables
+  - ebtables
+  - kmod
+  - vim
+  - jq
+  - chrony
+  - openssh-server
+
+k8s_kernel_modules:
+  - overlay
+  - br_netfilter
+
+k8s_hwe_kernel_enabled: true
+k8s_hwe_kernel_reboot: false
+
+k8s_sysctl_params:
+  net.ipv4.ip_forward: "1"
+  net.bridge.bridge-nf-call-iptables: "1"
+  net.bridge.bridge-nf-call-ip6tables: "1"
+
+ssh_hardening_enabled: true
+ssh_manage_authorized_keys: true
+ssh_user: setup
+ssh_authorized_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICUcYr1UiNQY2Q5OdVdsHkJM/DkLJWjPxMLLBJu2G/EE cloud@key"
+ssh_allow_users:
+  - setup
+ssh_port: 22
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+ssh_kbd_interactive_authentication: "no"
+ssh_challenge_response_authentication: "no"
+ssh_x11_forwarding: "no"
+ssh_allow_tcp_forwarding: "no"
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 2
+ssh_max_auth_tries: 3
+
+chrony_enabled: true
+chrony_ntp_servers:
+  - "time.google.com"
+  - "time.cloudflare.com"
+  - "pool.ntp.org"
+chrony_timezone: "Asia/Ho_Chi_Minh"
+
+k8s_manage_hosts_file: true
+k8s_hosts_entries:
+  - ip: "172.23.0.46"
+    names:
+      - "Kubernetes-worker01"
+      - "k8s-wk01"
+  - ip: "172.23.0.47"
+    names:
+      - "Kubernetes-cp01"
+      - "k8s-cp01"
+  - ip: "172.23.0.48"
+    names:
+      - "Kubernetes-cp02"
+      - "k8s-cp02"
+  - ip: "172.23.0.49"
+    names:
+      - "Kubernetes-worker02"
+      - "k8s-wk02"
+  - ip: "172.23.0.24"
+    names:
+      - "Kubernetes-cp03"
+      - "k8s-cp03"
+  - ip: "172.23.0.28"
+    names:
+      - "Kubernetes-worker03"
+      - "k8s-wk03"
+
+netplan_enabled: true
+netplan_apply: false
+netplan_renderer: networkd
+netplan_config_file: /etc/netplan/01-k8s-static.yaml
+netplan_nameservers:
+  addresses:
+    - "8.8.8.8"
+    - "1.1.1.1"
+  search:
+    - "local"
+netplan_mtu: 1500
+
+# RKE2 Air-gap Prepare
+rke2_local_images:
+  - "../rke2-images/rke2-images.linux-amd64.tar.zst"
+rke2_local_binary_bundle: "../rke2-images/rke2.linux-amd64.tar.gz"
+rke2_local_install_script: "../rke2-images/install.sh"
+rke2_local_checksum: "../rke2-images/sha256sum-amd64.txt"
+
+# RKE2 Air-gap Install
+rke2_first_server: Kubernetes-web02
+rke2_token: CHANGE_ME_RKE2_CLUSTER_TOKEN
+rke2_cni: canal
+rke2_tls_san:
+  - "172.23.0.47"
+  - "Kubernetes-cp01"
+  - "k8s-cp01"

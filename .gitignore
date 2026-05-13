@@ -1,0 +1,49 @@
+# Ansible
+*.retry
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+bin/
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtualenv
+venv/
+ENV/
+
+# OS specific
+.DS_Store
+Thumbs.db
+*.swp
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Sensitive data
+*.key
+*.pem
+id_ed25519*
+!id_ed25519*.pub
+secrets.yml
+
+# Project specific
+rke2-images/

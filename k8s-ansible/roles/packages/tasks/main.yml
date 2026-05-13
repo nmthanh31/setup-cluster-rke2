@@ -1,0 +1,24 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade OS packages when explicitly enabled
+  ansible.builtin.apt:
+    upgrade: dist
+  when: k8s_apt_upgrade_enabled | bool
+
+- name: Install baseline packages for Kubernetes OS
+  ansible.builtin.apt:
+    name: "{{ k8s_base_packages }}"
+    state: present
+
+- name: Check packages on hold
+  ansible.builtin.command: apt-mark showhold
+  register: apt_hold_packages
+  changed_when: false
+
+- name: Show held packages
+  ansible.builtin.debug:
+    var: apt_hold_packages.stdout_lines

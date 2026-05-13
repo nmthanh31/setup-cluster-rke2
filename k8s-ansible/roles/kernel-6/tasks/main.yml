@@ -1,0 +1,34 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install HWE Kernel (Version 6.x for Ubuntu 22.04/24.04)
+  ansible.builtin.apt:
+    name: "{{ kernel_6_package }}"
+    state: latest
+    install_recommends: true
+  register: kernel_install
+
+- name: Check if reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_required
+
+- name: Reboot to activate new kernel
+  ansible.builtin.reboot:
+    msg: "Rebooting to activate Kernel 6.x installed by Ansible"
+    reboot_timeout: 600
+  when: 
+    - kernel_6_reboot | bool
+    - reboot_required.stat.exists
+
+- name: Verify current kernel version
+  ansible.builtin.command: uname -r
+  register: kernel_version
+  changed_when: false
+
+- name: Display kernel version
+  ansible.builtin.debug:
+    msg: "Current kernel version is {{ kernel_version.stdout }}"

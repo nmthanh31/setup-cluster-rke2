@@ -1,0 +1,8 @@
+---
+node_hostname: "Kubernetes-worker02"
+rke2_node_type: agent
+
+netplan_interface: "ens160"
+netplan_addresses:
+  - "172.23.0.49/24"
+netplan_gateway4: "172.23.0.1"
