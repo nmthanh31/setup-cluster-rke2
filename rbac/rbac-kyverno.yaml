@@ -1,0 +1,138 @@
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kyverno-monitoring-editor
+  namespace: kyverno
+rules:
+- apiGroups: ["monitoring.coreos.com"]
+  resources:
+  - servicemonitors
+  - podmonitors
+  - prometheusrules
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources:
+  - roles
+  - rolebindings
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: [""]
+  resources:
+  - serviceaccounts
+  - secrets
+  - configmaps
+  - services
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["apps"]
+  resources:
+  - deployments
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["batch"]
+  resources:
+  - jobs
+  - cronjobs
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["networking.k8s.io"]
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["coordination.k8s.io"]
+  resources:
+  - leases
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+- apiGroups: ["policy"]
+  resources:
+  - poddisruptionbudgets
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kyverno-monitoring-editor-m-nbdqk
+  namespace: kyverno
+subjects:
+- kind: User
+  name: m-nbdqk
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: kyverno-monitoring-editor
+  apiGroup: rbac.authorization.k8s.io
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRole
+# metadata:
+#   name: kyverno-installer-cluster-access
+# rules:
+# - apiGroups: ["apiextensions.k8s.io"]
+#   resources:
+#   - customresourcedefinitions
+#   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# - apiGroups: ["admissionregistration.k8s.io"]
+#   resources:
+#   - mutatingwebhookconfigurations
+#   - validatingwebhookconfigurations
+#   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# - apiGroups: ["rbac.authorization.k8s.io"]
+#   resources:
+#   - clusterroles
+#   - clusterrolebindings
+#   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# - apiGroups: ["kyverno.io"]
+#   resources:
+#   - clusterpolicies
+#   - policies
+#   - cleanuppolicies
+#   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# - apiGroups: ["wgpolicyk8s.io"]
+#   resources:
+#   - clusterpolicyreports
+#   - policyreports
+#   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRoleBinding
+# metadata:
+#   name: kyverno-installer-cluster-access-m-nbdqk
+# subjects:
+# - kind: User
+#   name: m-nbdqk
+#   apiGroup: rbac.authorization.k8s.io
+# roleRef:
+#   kind: ClusterRole
+#   name: kyverno-installer-cluster-access
+#   apiGroup: rbac.authorization.k8s.io
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crd-read-access
+rules:
+- apiGroups: ["apiextensions.k8s.io"]
+  resources:
+  - customresourcedefinitions
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: crd-read-access-m-nbdqk
+subjects:
+- kind: User
+  name: m-nbdqk
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: crd-read-access
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,10 @@
+---
+- name: Load Rancher and RKE2 images into cluster
+  hosts: all
+  become: true
+  gather_facts: false
+
+  roles:
+    - role: rancher-images-load
+      tags: rancher-images-load
+ 

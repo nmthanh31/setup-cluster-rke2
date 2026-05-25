@@ -7,24 +7,24 @@
   roles:
     # - role: assert
     #   tags: assert
-    # - role: packages
-    #   tags: packages
+    - role: packages
+      tags: packages
     # - role: kernel
     #   tags: kernel
     #- role: kernel-6
     #  tags: kernel-6
     #- role: rke2-prep
     #  tags: rke2-prep
-    # - role: rke2-install-airgap
-    #   tags: rke2-install-airgap
+    # - role: rancher-prep
+    #   tags: rancher-prep
     # - role: sysctl
     #   tags: sysctl
     # - role: ssh
     #   tags: ssh
     # - role: ntp
     #   tags: ntp
-    - role: hosts
-      tags: hosts
+    # - role: hosts
+    #   tags: hosts
     # - role: netplan
     #   tags: netplan
     # - role: verify

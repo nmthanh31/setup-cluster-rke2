@@ -1,0 +1,28 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: grafana-proxy-access
+  namespace: cattle-monitoring-system
+rules:
+- apiGroups: [""]
+  resources:
+  - services
+  - services/proxy
+  - endpoints
+  - pods
+  - configmaps
+  verbs: ["get", "list", "watch", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: grafana-proxy-access-m-nbdqk
+  namespace: cattle-monitoring-system
+subjects:
+- kind: User
+  name: m-nbdqk
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: grafana-proxy-access
+  apiGroup: rbac.authorization.k8s.io

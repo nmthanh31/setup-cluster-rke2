@@ -10,3 +10,4 @@ k8s_base_packages:
   - ca-certificates
   - gnupg
   - lsb-release
+  - helm

@@ -47,3 +47,8 @@ secrets.yml
 
 # Project specific
 rke2-images/
+rancher-monitoring-images/
+rancher-images/
+ingress-nginx-images/
+rancher-monitoring/
+longhorn/

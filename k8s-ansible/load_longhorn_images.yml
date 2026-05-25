@@ -1,0 +1,45 @@
+---
+- name: Load Longhorn images into cluster
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Cài đặt các package phụ thuộc cho Longhorn (open-iscsi, nfs-common)
+      ansible.builtin.apt:
+        name:
+          - open-iscsi
+          - nfs-common
+        state: present
+        update_cache: yes
+
+    - name: Đảm bảo iscsid service đang chạy và tự khởi động
+      ansible.builtin.systemd:
+        name: iscsid
+        state: started
+        enabled: yes
+
+    - name: Tạo thư mục chứa RKE2 agent images
+      ansible.builtin.file:
+        path: /var/lib/rancher/rke2/agent/images
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Copy Longhorn images tarball
+      ansible.builtin.copy:
+        src: "../rancher-images/longhorn-images-v1.11.1-rancher.tar"
+        dest: "/var/lib/rancher/rke2/agent/images/longhorn-images-v1.11.1-rancher.tar"
+        mode: '0644'
+
+    - name: Import Longhorn images vào containerd RKE2
+      ansible.builtin.shell: |
+        /var/lib/rancher/rke2/bin/ctr \
+          -a /run/k3s/containerd/containerd.sock \
+          -n k8s.io images import \
+          /var/lib/rancher/rke2/agent/images/longhorn-images-v1.11.1-rancher.tar
+      register: import_result
+      changed_when: "'imported' in import_result.stdout"
+      async: 600
+      poll: 15

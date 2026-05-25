@@ -1,0 +1,49 @@
+---
+- name: Load Rancher Monitoring images into cluster
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Tạo thư mục chứa RKE2 agent images
+      ansible.builtin.file:
+        path: /var/lib/rancher/rke2/agent/images
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Copy Rancher Monitoring images tarball
+      ansible.builtin.copy:
+        src: "../rancher-monitoring/rancher-monitoring-images.tar"
+        dest: "/var/lib/rancher/rke2/agent/images/rancher-monitoring-images.tar"
+        mode: '0644'
+
+    - name: Tạo thư mục chứa file deploy Rancher Monitoring
+      ansible.builtin.file:
+        path: /root/rancher-monitoring
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Copy Rancher Monitoring charts and rendered manifest
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/root/rancher-monitoring/"
+        mode: '0644'
+      loop:
+        - "../rancher-monitoring/rancher-monitoring-109.0.1+up80.9.1-rancher.8.tgz"
+        - "../rancher-monitoring/rancher-monitoring-crd-109.0.1+up80.9.1-rancher.8.tgz"
+        - "../rancher-monitoring/rendered-rancher-monitoring.yaml"
+
+    - name: Import Rancher Monitoring images vào containerd RKE2
+      ansible.builtin.shell: |
+        /var/lib/rancher/rke2/bin/ctr \
+          -a /run/k3s/containerd/containerd.sock \
+          -n k8s.io images import \
+          /var/lib/rancher/rke2/agent/images/rancher-monitoring-images.tar
+      register: import_result
+      changed_when: "'imported' in import_result.stdout"
+      async: 1200
+      poll: 15

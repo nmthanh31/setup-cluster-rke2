@@ -1,0 +1,4 @@
+---
+rancher_images_local_path: "{{ playbook_dir }}/../rancher-images"
+rancher_images_dest_path: "/root/rancher-images"
+rancher_load_images: true

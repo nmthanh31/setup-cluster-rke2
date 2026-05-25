@@ -26,6 +26,7 @@ k8s_base_packages:
   - jq
   - chrony
   - openssh-server
+  - helm
 
 k8s_kernel_modules:
   - overlay
@@ -111,11 +112,33 @@ rke2_local_binary_bundle: "../rke2-images/rke2.linux-amd64.tar.gz"
 rke2_local_install_script: "../rke2-images/install.sh"
 rke2_local_checksum: "../rke2-images/sha256sum-amd64.txt"
 
-# RKE2 Air-gap Install
-rke2_first_server: Kubernetes-web02
-rke2_token: CHANGE_ME_RKE2_CLUSTER_TOKEN
-rke2_cni: canal
-rke2_tls_san:
-  - "172.23.0.47"
-  - "Kubernetes-cp01"
-  - "k8s-cp01"
+#Rancher Monitoring Air-gap Prepare
+rancher_local_alertmanager_images:
+  - "../rancher-images/docker.io_rancher_appco-alertmanager_0.28.1-12.7.tar"
+rancher_local_kube_state_metrics_images:
+  - "../rancher-images/docker.io_rancher_appco-kube-state-metrics_2.17.0-10.7.tar"
+rancher_local_node-exporter_images:
+  - "../rancher-images/docker.io_rancher_appco-node-exporter_1.9.1-11.3.tar"
+rancher_local_ingress_nginx_images:
+  - "../rancher-images/docker.io_rancher_mirrored-ingress-nginx-kube-webhook-certgen_v1.6.2.tar"
+rancher_local_prometheus_operator_images:
+  - "../rancher-images/docker.io_rancher_mirrored-prometheus-operator-prometheus-operator_v0.85.0.tar"
+rancher_local_prometheus_images:
+  - "../rancher-images/docker.io_rancher_prom-prometheus_v3.5.0.tar"
+rancher_local_grafana_images:
+  - "../rancher-images/rancher_appco-grafana_12.1.1-2.2.tar"
+rancher_local_sidecar_images:
+  - "../rancher-images/rancher_appco-k8s-sidecar_1.30.7-11.3.tar"
+rancher_local_kubectl_images:
+  - "../rancher-images/rancher_kuberlr-kubectl_v6.0.0.tar"
+rancher_local_nginx_images:
+  - "../rancher-images/rancher_mirrored-library-nginx_1.29.1-alpine.tar"
+rancher_local_prometheus_adapter_images:
+  - "../rancher-images/rancher_mirrored-prometheus-adapter-prometheus-adapter_v0.12.0.tar"
+rancher_local_chart:
+  - "../rancher-images/rancher-monitoring-108.0.1+up77.9.1-rancher.10.tgz"
+rancher_local_crds:
+  - "../rancher-images/rancher-monitoring-crd-108.0.1+up77.9.1-rancher.10.tgz"
+rancher_local_checksum:
+  - "../rancher-images/sha256sum-amd64.txt"
+rancher_local_values: "../rancher-images/values-airgap.yaml"

@@ -1,0 +1,48 @@
+---
+- name: Load Ingress NGINX images into cluster
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Tạo thư mục chứa RKE2 agent images
+      ansible.builtin.file:
+        path: /var/lib/rancher/rke2/agent/images
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Copy Ingress NGINX images tarball
+      ansible.builtin.copy:
+        src: "../ingress-nginx-images/ingress-nginx-v1.15.1-images.tar"
+        dest: "/var/lib/rancher/rke2/agent/images/ingress-nginx-v1.15.1-images.tar"
+        mode: '0644'
+
+    - name: Tạo thư mục chứa file deploy Ingress NGINX
+      ansible.builtin.file:
+        path: /root/ingress-nginx
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Copy Ingress NGINX chart and rendered manifest
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/root/ingress-nginx/"
+        mode: '0644'
+      loop:
+        - "../ingress-nginx-images/ingress-nginx-4.15.1.tgz"
+        - "../ingress-nginx-images/rendered.yaml"
+
+    - name: Import Ingress NGINX images vào containerd RKE2
+      ansible.builtin.shell: |
+        /var/lib/rancher/rke2/bin/ctr \
+          -a /run/k3s/containerd/containerd.sock \
+          -n k8s.io images import \
+          /var/lib/rancher/rke2/agent/images/ingress-nginx-v1.15.1-images.tar
+      register: import_result
+      changed_when: "'imported' in import_result.stdout"
+      async: 600
+      poll: 15

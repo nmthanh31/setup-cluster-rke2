@@ -1,0 +1,53 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: elk-dung-editor
+  namespace: elk-dung
+rules:
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources:
+  - roles
+  - rolebindings
+  verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
+
+- apiGroups: [""]
+  resources:
+  - serviceaccounts
+  - secrets
+  - configmaps
+  - services
+  - persistentvolumeclaims
+  verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
+
+- apiGroups: ["batch"]
+  resources:
+  - jobs
+  - cronjobs
+  verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
+
+- apiGroups: ["apps"]
+  resources:
+  - deployments
+  - statefulsets
+  - daemonsets
+  verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
+
+- apiGroups: ["networking.k8s.io"]
+  resources:
+  - ingresses
+  verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: elk-dung-editor-m-9jmn2
+  namespace: elk-dung
+subjects:
+- kind: User
+  name: m-9jmn2
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: elk-dung-editor
+  apiGroup: rbac.authorization.k8s.io

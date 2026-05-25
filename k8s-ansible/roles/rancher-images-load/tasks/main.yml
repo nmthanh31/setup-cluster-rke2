@@ -1,0 +1,47 @@
+---
+- name: Tạo thư mục chứa RKE2 agent images
+  ansible.builtin.file:
+    path: /var/lib/rancher/rke2/agent/images
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Tạo thư mục chứa Helm charts
+  ansible.builtin.file:
+    path: /home/setup/charts
+    state: directory
+    mode: '0755'
+    owner: setup
+    group: setup
+
+- name: Copy RKE2 images tarball và sha256
+  ansible.builtin.copy:
+    src: "../rancher-images/{{ item }}"
+    dest: "/var/lib/rancher/rke2/agent/images/{{ item }}"
+    mode: '0644'
+  loop:
+    - "rancher-v2.14.1-rke2-v1.34.6rke2r3-images.tar"
+    - "rancher-v2.14.1-rke2-v1.34.6rke2r3-images.tar.sha256"
+
+- name: Copy Rancher và Cert-manager Helm charts
+  ansible.builtin.copy:
+    src: "../rancher-images/{{ item }}"
+    dest: "/home/setup/charts/{{ item }}"
+    mode: '0644'
+    owner: setup
+    group: setup
+  loop:
+    - "rancher-2.14.1.tgz"
+    - "cert-manager-v1.20.2.tgz"
+
+- name: Import images vào containerd RKE2 (Thủ công)
+  ansible.builtin.shell: |
+    /var/lib/rancher/rke2/bin/ctr \
+      -a /run/k3s/containerd/containerd.sock \
+      -n k8s.io images import \
+      /var/lib/rancher/rke2/agent/images/rancher-v2.14.1-rke2-v1.34.6rke2r3-images.tar
+  register: import_result
+  changed_when: "'imported' in import_result.stdout"
+  async: 1800 # 30 minutes timeout for 13GB import
+  poll: 30
