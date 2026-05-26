@@ -1,0 +1,264 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: postgres-operator-cluster-installer
+rules:
+  # CRD để cài Percona PostgreSQL Operator
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+
+  # Cluster RBAC cho Operator
+  # Lưu ý: bind/escalate thường cần khi Helm chart tạo ClusterRole/ClusterRoleBinding
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources:
+      - clusterroles
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+      - escalate
+
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources:
+      - clusterrolebindings
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+      - bind
+
+  # StorageClass
+  - apiGroups: ["storage.k8s.io"]
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+
+  # PersistentVolume
+  - apiGroups: [""]
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+
+  # SnapshotClass, nếu cluster có CSI snapshot
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources:
+      - volumesnapshotclasses
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cao-tuan-dung-postgres-operator-cluster-installer
+subjects:
+  - kind: User
+    name: m-9jmn2
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: postgres-operator-cluster-installer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: postgres-operator-namespace-manager
+  namespace: postgres-operator
+rules:
+  # Core resources trong namespace postgres-operator
+  - apiGroups: [""]
+    resources:
+      - serviceaccounts
+      - services
+      - endpoints
+      - configmaps
+      - secrets
+      - pods
+      - events
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+      - deletecollection
+
+  # Deployment/ReplicaSet của Operator
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+      - deletecollection
+
+  # RBAC trong namespace postgres-operator
+  # Lưu ý: bind/escalate giúp Helm tạo Role/RoleBinding không bị chặn bởi cơ chế RBAC escalation
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources:
+      - roles
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+      - deletecollection
+      - escalate
+
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources:
+      - rolebindings
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+      - deletecollection
+      - bind
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cao-tuan-dung-postgres-operator-namespace-manager
+  namespace: postgres-operator
+subjects:
+  - kind: User
+    name: m-9jmn2
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: postgres-operator-namespace-manager
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: postgres-dev-manager
+  namespace: postgres-dev
+rules:
+  # Percona PostgreSQL custom resources
+  - apiGroups: ["pgv2.percona.com"]
+    resources:
+      - perconapgclusters
+      - perconapgbackups
+      - perconapgrestores
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+
+  # Core resources trong namespace postgres-dev
+  - apiGroups: [""]
+    resources:
+      - persistentvolumeclaims
+      - pods
+      - services
+      - endpoints
+      - configmaps
+      - secrets
+      - events
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+
+  # Workload resources
+  - apiGroups: ["apps"]
+    resources:
+      - statefulsets
+      - deployments
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+
+  # Job/CronJob cho backup, restore, maintenance
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cao-tuan-dung-postgres-dev-manager
+  namespace: postgres-dev
+subjects:
+  - kind: User
+    name: m-9jmn2
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: postgres-dev-manager
+  apiGroup: rbac.authorization.k8s.io
