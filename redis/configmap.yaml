@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: redis
+data:
+  redis.conf: |
+    port 6379
+    bind 0.0.0.0
+    protected-mode yes
+
+    appendonly no
+    save ""
+
+    maxmemory 700mb
+    maxmemory-policy allkeys-lru
+
+    tcp-keepalive 60
+    timeout 0
+
+    dir /data
+    loglevel notice
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-scripts
+  namespace: redis
+data:
+  start-redis.sh: |
+    #!/bin/sh
+    set -e
+
+    cp /config/redis.conf /work/redis.conf
+
+    echo "requirepass ${REDIS_PASSWORD}" >> /work/redis.conf
+    echo "masterauth ${REDIS_PASSWORD}" >> /work/redis.conf
+
+    ORDINAL=$(hostname | awk -F- '{print $NF}')
+
+    if [ "$ORDINAL" != "0" ]; then
+      echo "replicaof redis-0.redis-headless.redis.svc.cluster.local 6379" >> /work/redis.conf
+    fi
+
+    exec redis-server /work/redis.conf
+
+  start-sentinel.sh: |
+    #!/bin/sh
+    set -e
+
+    cat > /work/sentinel.conf <<EOF
+    port 26379
+    bind 0.0.0.0
+    protected-mode no
+    dir /tmp
+    logfile ""
+
+    sentinel resolve-hostnames yes
+    sentinel announce-hostnames yes
+    sentinel monitor mymaster redis-0.redis-headless.redis.svc.cluster.local 6379 1
+    sentinel auth-pass mymaster ${REDIS_PASSWORD}
+    sentinel down-after-milliseconds mymaster 10000
+    sentinel failover-timeout mymaster 60000
+    sentinel parallel-syncs mymaster 1
+    EOF
+
+    exec redis-server /work/sentinel.conf --sentinel
