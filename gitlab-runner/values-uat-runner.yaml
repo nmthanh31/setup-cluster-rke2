@@ -1,0 +1,56 @@
+gitlabUrl: "https://scm.vnpost.vn/"
+
+runnerToken: "glrt--u_6JtCsGOhsdgJF3i3B4m86MQpwOjIyCnQ6Mwp1OjFlEQ.01.1a084oe0n"
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+  name: gitlab-runner
+
+concurrent: 2
+checkInterval: 10
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+runners:
+  name: "uat-k8s-runner"
+  tags: "uat,k8s,docker"
+  executor: "kubernetes"
+  locked: false
+  runUntagged: true
+
+  config: |
+    [[runners]]
+      name = "uat-k8s-runner"
+      url = "https://scm.vnpost.vn/"
+      executor = "kubernetes"
+      limit = 2
+
+      [runners.kubernetes]
+        namespace = "gitlab-runner"
+        image = "alpine:3.20"
+        pull_policy = "if-not-present"
+        privileged = false
+
+        cpu_request = "500m"
+        memory_request = "2Gi"
+        cpu_limit = "3000m"
+        memory_limit = "6Gi"
+
+        helper_cpu_request = "50m"
+        helper_memory_request = "64Mi"
+        helper_cpu_limit = "200m"
+        helper_memory_limit = "256Mi"
+
+        service_cpu_request = "100m"
+        service_memory_request = "128Mi"
+        service_cpu_limit = "500m"
+        service_memory_limit = "512Mi"

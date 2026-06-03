@@ -52,3 +52,4 @@ rancher-images/
 ingress-nginx-images/
 rancher-monitoring/
 longhorn/
+image-tars/

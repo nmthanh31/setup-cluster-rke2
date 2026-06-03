@@ -1,0 +1,38 @@
+﻿apiVersion: v1
+kind: Service
+metadata:
+  name: cmp-ams
+  namespace: cmp-backend-dev
+  labels:
+    app: cmp-ams
+spec:
+  type: ClusterIP
+  selector:
+    app: cmp-ams
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    - name: grpc
+      port: 9090
+      targetPort: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cmp-billing
+  namespace: cmp-backend-dev
+  labels:
+    app: cmp-billing
+spec:
+  type: ClusterIP
+  selector:
+    app: cmp-billing
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    - name: grpc
+      port: 9091
+      targetPort: grpc
+

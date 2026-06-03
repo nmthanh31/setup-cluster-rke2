@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmp-portal
+  namespace: cmp-portal-dev
+  labels:
+    app: cmp-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cmp-portal
+  template:
+    metadata:
+      labels:
+        app: cmp-portal
+    spec:
+      containers:
+        - name: cmp-portal
+          image: docker.io/nmthanh31/cmp-portal-test:ci-latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: AMS_UPSTREAM
+              value: "http://10.0.0.52"
+            - name: BILLING_UPSTREAM
+              value: "http://10.0.0.52"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20

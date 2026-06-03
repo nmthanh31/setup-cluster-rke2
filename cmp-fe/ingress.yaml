@@ -1,0 +1,33 @@
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: cmp-portal
+#   namespace: cmp-portal-dev
+#   labels:
+#     app: cmp-portal
+#   annotations:
+#     cert-manager.io/cluster-issuer: selfsigned-cluster-issuer
+#     nginx.ingress.kubernetes.io/backend-protocol: HTTP
+#     nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
+#     nginx.ingress.kubernetes.io/proxy-body-size: 200m
+#     nginx.ingress.kubernetes.io/proxy-connect-timeout: '300'
+#     nginx.ingress.kubernetes.io/proxy-read-timeout: '300'
+#     nginx.ingress.kubernetes.io/proxy-send-timeout: '300'
+#     nginx.ingress.kubernetes.io/ssl-redirect: 'false'
+# spec:
+#   ingressClassName: nginx
+#   rules:
+#     - host: cmp-portal.vnpost.vn
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: cmp-portal
+#                 port:
+#                   number: 80
+#   tls:
+#     - hosts:
+#         - cmp-portal.vnpost.vn
+#       secretName: cmp-portal-tls

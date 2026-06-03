@@ -1,0 +1,122 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmp-ams
+  namespace: cmp-backend-dev
+  labels:
+    app: cmp-ams
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cmp-ams
+  template:
+    metadata:
+      labels:
+        app: cmp-ams
+    spec:
+      containers:
+        - name: cmp-ams
+          image: cmp-ams:0.0.12
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: grpc
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: cmp-backend-config
+            - secretRef:
+                name: cmp-backend-secret
+          volumeMounts:
+            - name: cmp-ams-rsa
+              mountPath: /run/secrets/cmp-ams-rsa.pem
+              subPath: cmp-ams-rsa.pem
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 8
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: cmp-ams-rsa
+          secret:
+            secretName: cmp-backend-secret
+            items:
+              - key: cmp-ams-rsa.pem
+                path: cmp-ams-rsa.pem
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmp-billing
+  namespace: cmp-backend-dev
+  labels:
+    app: cmp-billing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cmp-billing
+  template:
+    metadata:
+      labels:
+        app: cmp-billing
+    spec:
+      containers:
+        - name: cmp-billing
+          image: cmp-billing:0.0.12
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: grpc
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: cmp-backend-config
+            - secretRef:
+                name: cmp-backend-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 8
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
