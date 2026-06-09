@@ -84,12 +84,15 @@ spec:
             defaultMode: 0755
         - name: workdir
           emptyDir: {}
-  volumeClaimTemplates:
+    volumeClaimTemplates:
     - metadata:
         name: data
+        annotations:
+          longhorn.io/number-of-replicas: "1"
       spec:
         accessModes:
           - ReadWriteOnce
+        storageClassName: longhorn
         resources:
           requests:
             storage: 5Gi

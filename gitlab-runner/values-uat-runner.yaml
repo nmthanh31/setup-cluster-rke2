@@ -54,3 +54,7 @@ runners:
         service_memory_request = "128Mi"
         service_cpu_limit = "500m"
         service_memory_limit = "512Mi"
+
+        [[runners.kubernetes.host_aliases]]
+          ip = "172.23.0.46"
+          hostnames = ["uat-harbor-lab.vnpost.vn"]

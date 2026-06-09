@@ -16,10 +16,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - uat-keycloak-lab.vnpost.vn
-      secretName: uat-keycloak-lab-tls
+        - dev-cmp-iam.vnpost.vn
+      secretName: dev-cmp-iam-tls
   rules:
-    - host: uat-keycloak-lab.vnpost.vn
+    - host: dev-cmp-iam.vnpost.vn
       http:
         paths:
           - path: /

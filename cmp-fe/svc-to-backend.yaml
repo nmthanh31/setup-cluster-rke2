@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cmp-ams
+  namespace: cmp-portal-dev
+spec:
+  type: ExternalName
+  externalName: cmp-ams.cmp-backend-dev.svc.cluster.local
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cmp-billing
+  namespace: cmp-portal-dev
+spec:
+  type: ExternalName
+  externalName: cmp-billing.cmp-backend-dev.svc.cluster.local
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

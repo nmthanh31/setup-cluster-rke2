@@ -1,12 +1,14 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: cmp-portal-web
+  name: cmp-portal-api
   namespace: cmp-portal-dev
   annotations:
     cert-manager.io/cluster-issuer: selfsigned-cluster-issuer
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   tls:
@@ -17,10 +19,17 @@ spec:
     - host: dev-api-cmp.vnpost.vn
       http:
         paths:
-          - path: /
-            pathType: Prefix
+          - path: /ams(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
-                name: cmp-portal
+                name: cmp-ams
                 port:
-                  number: 80
+                  number: 8080
+          - path: /billing(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: cmp-billing
+                port:
+                  number: 8080
