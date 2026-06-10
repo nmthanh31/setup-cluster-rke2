@@ -18,11 +18,20 @@ kind: Service
 metadata:
   name: redis
   namespace: redis
+# spec:
+#   type: ClusterIP
+#   selector:
+#     app: redis
+#   ports:
+#     - name: redis
+#       port: 6379
+#       targetPort: 6379
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
-    app: redis
+    statefulset.kubernetes.io/pod-name: redis-0
   ports:
     - name: redis
       port: 6379
       targetPort: 6379
+      nodePort: 30379

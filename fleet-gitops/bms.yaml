@@ -1,0 +1,12 @@
+# kubectl -n fleet-local create secret generic gitlab-fleet-cmp-bms-auth  --type=kubernetes.io/basic-auth --from-literal=username='dungct' --from-literal=password='glpat-bsVbsLgwIiqKzPZ23DK0eW86MQp1OjJ3CA.01.0y1ujv9qx'
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: cmp-bms-gitops
+  namespace: fleet-local
+spec:
+  repo: https://scm.vnpost.vn/cloud/cmp/bms.git
+  branch: dung-test
+  paths:
+    - Fleet-bms
+  clientSecretName: gitlab-fleet-cmp-bms-auth
