@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: valkey-cluster-config
+  namespace: valkey-cluster
+data:
+  start-valkey-cluster.sh: |
+    #!/bin/sh
+    set -e
+
+    PASSWORD="$(cat /etc/valkey-secret/password)"
+    POD_NAME="$(hostname)"
+    HEADLESS="valkey-cluster-headless.valkey-cluster.svc.cluster.local"
+
+    cat > /data/valkey.conf <<CONF
+    port 6379
+    bind 0.0.0.0
+    protected-mode no
+
+    requirepass ${PASSWORD}
+    masterauth ${PASSWORD}
+
+    dir /data
+    appendonly yes
+    appendfsync everysec
+
+    cluster-enabled yes
+    cluster-config-file /data/nodes.conf
+    cluster-node-timeout 5000
+
+    cluster-announce-hostname ${POD_NAME}.${HEADLESS}
+    cluster-announce-port 6379
+    cluster-announce-bus-port 16379
+
+    tcp-keepalive 60
+    timeout 0
+    logfile ""
+    CONF
+
+    exec valkey-server /data/valkey.conf

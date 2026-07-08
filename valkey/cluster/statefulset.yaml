@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey-cluster
+  namespace: valkey-cluster
+spec:
+  serviceName: valkey-cluster-headless
+  replicas: 6
+  selector:
+    matchLabels:
+      app: valkey-cluster
+  template:
+    metadata:
+      labels:
+        app: valkey-cluster
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: valkey
+          image: valkey/valkey:9.1.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - /scripts/start-valkey-cluster.sh
+          ports:
+            - name: client
+              containerPort: 6379
+            - name: cluster-bus
+              containerPort: 16379
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: data
+              mountPath: /data
+            - name: valkey-auth
+              mountPath: /etc/valkey-secret
+              readOnly: true
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - valkey-cli -a "$(cat /etc/valkey-secret/password)" ping | grep PONG
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - valkey-cli -a "$(cat /etc/valkey-secret/password)" ping | grep PONG
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 512Mi
+      volumes:
+        - name: scripts
+          configMap:
+            name: valkey-cluster-config
+            defaultMode: 0755
+        - name: valkey-auth
+          secret:
+            secretName: valkey-cluster-auth
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 2Gi

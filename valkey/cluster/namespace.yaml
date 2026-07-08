@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: valkey-cluster
+
+#PASS=$(kubectl -n valkey-cluster get secret valkey-cluster-auth \
+#  -o jsonpath='{.data.password}' | base64 -d)
+
+# kubectl -n valkey-cluster exec -it valkey-cluster-0 -- sh -c '
+# yes yes | valkey-cli -a "'"$PASS"'" --cluster create \
+#   valkey-cluster-0.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379 \
+#   valkey-cluster-1.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379 \
+#   valkey-cluster-2.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379 \
+#   valkey-cluster-3.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379 \
+#   valkey-cluster-4.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379 \
+#   valkey-cluster-5.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379 \
+#   --cluster-replicas 1
+# '
