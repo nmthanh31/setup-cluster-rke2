@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey-sentinel
+  namespace: valkey
+spec:
+  serviceName: valkey-sentinel-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: valkey-sentinel
+  template:
+    metadata:
+      labels:
+        app: valkey-sentinel
+    spec:
+      containers:
+        - name: sentinel
+          image: valkey/valkey:9.1.0
+          command:
+            - /bin/sh
+            - /scripts/start-sentinel.sh
+          ports:
+            - name: sentinel
+              containerPort: 26379
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: sentinel-data
+              mountPath: /data
+            - name: valkey-auth
+              mountPath: /etc/valkey-secret
+              readOnly: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: scripts
+          configMap:
+            name: valkey-scripts
+            defaultMode: 0755
+        - name: valkey-auth
+          secret:
+            secretName: valkey-auth
+  volumeClaimTemplates:
+    - metadata:
+        name: sentinel-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

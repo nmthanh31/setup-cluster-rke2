@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: valkey-scripts
+  namespace: valkey
+data:
+  start-valkey.sh: |
+    #!/bin/sh
+    set -e
+
+    PASSWORD="$(cat /etc/valkey-secret/password)"
+    POD_NAME="$(hostname)"
+    POD_INDEX="${POD_NAME##*-}"
+
+    HEADLESS="valkey-headless.valkey.svc.cluster.local"
+    INITIAL_PRIMARY="valkey-0.${HEADLESS}"
+
+    cat > /data/valkey.conf <<CONF
+    port 6379
+    bind 0.0.0.0
+    protected-mode no
+
+    dir /data
+    appendonly yes
+    appendfsync everysec
+
+    requirepass ${PASSWORD}
+    masterauth ${PASSWORD}
+
+    replica-announce-ip ${POD_NAME}.${HEADLESS}
+    replica-announce-port 6379
+
+    tcp-keepalive 60
+    timeout 0
+
+    save 900 1
+    save 300 10
+    save 60 10000
+    CONF
+
+    if [ "$POD_INDEX" != "0" ]; then
+      echo "replicaof ${INITIAL_PRIMARY} 6379" >> /data/valkey.conf
+    fi
+
+    exec valkey-server /data/valkey.conf
+
+  start-sentinel.sh: |
+    #!/bin/sh
+    set -e
+
+    PASSWORD="$(cat /etc/valkey-secret/password)"
+
+    cat > /data/sentinel.conf <<CONF
+    port 26379
+    bind 0.0.0.0
+    protected-mode no
+
+    dir /data
+
+    sentinel resolve-hostnames yes
+    sentinel announce-hostnames yes
+
+    sentinel monitor mymaster valkey-0.valkey-headless.valkey.svc.cluster.local 6379 2
+    sentinel auth-pass mymaster ${PASSWORD}
+
+    sentinel down-after-milliseconds mymaster 5000
+    sentinel failover-timeout mymaster 60000
+    sentinel parallel-syncs mymaster 1
+
+    logfile ""
+    CONF
+
+    exec valkey-sentinel /data/sentinel.conf
