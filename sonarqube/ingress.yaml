@@ -1,0 +1,52 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sonarqube
+  namespace: sonarqube
+  annotations:
+    cert-manager.io/cluster-issuer: selfsigned-cluster-issuer
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - dev-cmp-api.vnpost.vn
+      secretName: dev-api-cmp-tls
+  rules:
+    - host: dev-cmp-api.vnpost.vn
+      http:
+        paths:
+          - path: /sonarqubetempt(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: sonarqube-sonarqube
+                port:
+                  number: 9000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sonarqube-redirect
+  namespace: sonarqube
+  annotations:
+    nginx.ingress.kubernetes.io/permanent-redirect: "https://dev-cmp-api.vnpost.vn/sonarqubetempt/"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - dev-cmp-api.vnpost.vn
+      secretName: dev-api-cmp-tls
+  rules:
+    - host: dev-cmp-api.vnpost.vn
+      http:
+        paths:
+          - path: /sonarqubetempt
+            pathType: Exact
+            backend:
+              service:
+                name: sonarqube-sonarqube
+                port:
+                  number: 9000

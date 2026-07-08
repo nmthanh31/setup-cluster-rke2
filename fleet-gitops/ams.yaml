@@ -1,4 +1,4 @@
-# kubectl -n fleet-local create secret generic gitlab-fleet-cmp-ams-auth  --type=kubernetes.io/basic-auth --from-literal=username='dungct' --from-literal=password='glpat-tZduNPNhsw-fno13lOGIgG86MQp1OjJ2CA.01.0y089lvxt'
+# kubectl -n fleet-local create secret generic ams-token  --type=kubernetes.io/basic-auth --from-literal=username='dungct' --from-literal=password='glpat-tZduNPNhsw-fno13lOGIgG86MQp1OjJ2CA.01.0y089lvxt'
 apiVersion: fleet.cattle.io/v1alpha1
 kind: GitRepo
 metadata:
@@ -9,4 +9,4 @@ spec:
   branch: dung-test
   paths:
     - Fleet-ams
-  clientSecretName: gitlab-fleet-cmp-ams-auth
+  clientSecretName: ams-token

@@ -1,0 +1,16 @@
+apisix:
+  # Enable both HTTP and Stream (TCP/UDP) proxies
+  proxy_mode: http&stream
+
+# Define the stream ports APISIX will listen on
+service:
+  http:
+    enabled: true
+  stream:
+    enabled: true
+    tcp:
+      # Expose port 9000 for your TCP traffic
+      - port: 9000
+    udp:
+      # Expose port 9001 for your UDP traffic (if needed)
+      - port: 9001

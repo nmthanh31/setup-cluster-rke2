@@ -1,0 +1,44 @@
+community:
+  enabled: true
+
+replicaCount: 1
+
+sonarWebContext: /sonarqubetempt
+
+env:
+  - name: SONAR_WEB_CONTEXT
+    value: /sonarqubetempt
+
+postgresql:
+  enabled: false
+
+monitoringPasscodeSecretName: "sonarqube-monitoring"
+monitoringPasscodeSecretKey: "monitoring-passcode"
+
+
+# Persistence configuration
+persistence:
+  enabled: true
+  storageClass: "longhorn" # Replace with your storage class (e.g., local-path for single-node RKE2)
+  accessMode: ReadWriteOnce
+  size: 5Gi
+
+# External Database Configuration
+jdbcOverwrite:
+  enabled: true
+  jdbcUrl: "jdbc:postgresql://pg-dev-pg-db-primary.postgres-dev.svc.cluster.local:5432/sonarqube"
+  jdbcUsername: "sonarqube"
+  jdbcSecretName: "sonarqube-db"
+  jdbcSecretPasswordKey: "jdbc-password"
+
+# Resource limits (recommended for production)
+resources:
+  requests:
+    cpu: "200m"
+    memory: "2Gi"
+  limits:
+    cpu: "2"
+    memory: "4Gi"
+
+ingress-nginx:
+  enabled: false

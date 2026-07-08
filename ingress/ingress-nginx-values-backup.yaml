@@ -1,0 +1,14 @@
+controller:
+  config:
+    compute-full-forwarded-for: true
+    forwarded-for-header: X-Forwarded-For
+    use-forwarded-headers: true
+  dnsPolicy: ClusterFirstWithHostNet
+  hostNetwork: true
+  ingressClass: nginx
+  ingressClassResource:
+    default: true
+    name: nginx
+  kind: DaemonSet
+  service:
+    enabled: false

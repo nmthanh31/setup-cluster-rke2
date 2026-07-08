@@ -1,0 +1,12 @@
+# kubectl -n fleet-local create secret generic tms-token  --type=kubernetes.io/basic-auth --from-literal=username='thanhnm1' --from-literal=password='glpat-UWiWVrLj0KSi0ST5ZvqR4G86MQp1OjNiCA.01.0y1rdl7yv'
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: cmp-tms-gitops
+  namespace: fleet-local
+spec:
+  repo: https://scm.vnpost.vn/cloud/cmp/tms.git
+  branch: dev/1.0.0
+  paths:
+    - fleet
+  clientSecretName: tms-token

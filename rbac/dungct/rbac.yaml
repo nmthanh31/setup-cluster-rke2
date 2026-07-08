@@ -4,8 +4,11 @@ metadata:
   name: resourcecheck-core-read
 rules:
 - apiGroups: [""]
-  resources: ["nodes", "services", "endpoints", "pods", "events", "configmaps", "namespaces"]
+  resources: ["nodes", "endpoints", "events", "namespaces"]
   verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["secrets", "configmaps", "ingresses", "services", "pods", "deployments", "statefulsets", "daemonsets", "replicasets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 - apiGroups: ["discovery.k8s.io"]
   resources: ["endpointslices"]
   verbs: ["get", "list", "watch"]
