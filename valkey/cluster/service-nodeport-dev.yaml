@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-cluster-0-nodeport
+  namespace: valkey-cluster
+  labels:
+    app: valkey-cluster
+    access: dev-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: valkey-cluster
+    statefulset.kubernetes.io/pod-name: valkey-cluster-0
+  ports:
+    - name: client
+      port: 6379
+      targetPort: 6379
+      nodePort: 31000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-cluster-1-nodeport
+  namespace: valkey-cluster
+  labels:
+    app: valkey-cluster
+    access: dev-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: valkey-cluster
+    statefulset.kubernetes.io/pod-name: valkey-cluster-1
+  ports:
+    - name: client
+      port: 6379
+      targetPort: 6379
+      nodePort: 31001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-cluster-2-nodeport
+  namespace: valkey-cluster
+  labels:
+    app: valkey-cluster
+    access: dev-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: valkey-cluster
+    statefulset.kubernetes.io/pod-name: valkey-cluster-2
+  ports:
+    - name: client
+      port: 6379
+      targetPort: 6379
+      nodePort: 31002
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-cluster-3-nodeport
+  namespace: valkey-cluster
+  labels:
+    app: valkey-cluster
+    access: dev-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: valkey-cluster
+    statefulset.kubernetes.io/pod-name: valkey-cluster-3
+  ports:
+    - name: client
+      port: 6379
+      targetPort: 6379
+      nodePort: 31003
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-cluster-4-nodeport
+  namespace: valkey-cluster
+  labels:
+    app: valkey-cluster
+    access: dev-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: valkey-cluster
+    statefulset.kubernetes.io/pod-name: valkey-cluster-4
+  ports:
+    - name: client
+      port: 6379
+      targetPort: 6379
+      nodePort: 31004
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-cluster-5-nodeport
+  namespace: valkey-cluster
+  labels:
+    app: valkey-cluster
+    access: dev-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: valkey-cluster
+    statefulset.kubernetes.io/pod-name: valkey-cluster-5
+  ports:
+    - name: client
+      port: 6379
+      targetPort: 6379
+      nodePort: 31005

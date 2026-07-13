@@ -1,53 +1,65 @@
-# Hướng dẫn cài đặt Valkey Cluster trên Kubernetes
+# Hướng Dẫn Cài Đặt Valkey Cluster Trên Kubernetes
 
-Tài liệu này mô tả cách cài đặt Valkey theo mô hình Cluster từ các manifest trong thư mục `valkey/cluster`.
+Tài liệu này hướng dẫn triển khai Valkey theo mô hình Cluster trên Kubernetes. Phần manifest được tách thành các file YAML riêng trong thư mục này, README chỉ mô tả cách cài đặt, kiểm tra, kết nối và vận hành.
 
-Mô hình này khác với Sentinel HA:
+Valkey Cluster phù hợp khi cần scale ngang. Dữ liệu được chia thành `16384` hash slot và phân bổ trên nhiều master. Ứng dụng bắt buộc phải dùng Redis/Valkey Cluster client, không dùng client single-node thông thường.
 
-- Valkey Cluster chia dữ liệu theo hash slot trên nhiều master.
-- Mỗi master có replica để dự phòng.
-- Client ứng dụng phải hỗ trợ Valkey/Redis Cluster.
-- Không dùng Sentinel để tìm primary; client cluster sẽ tự xử lý redirect qua `MOVED`/`ASK`.
+## 1. Mô Hình Triển Khai
 
-## 1. Kiến trúc
+Cụm gồm 6 pod Valkey chạy bằng StatefulSet:
 
-Cụm hiện tại dùng 6 pod Valkey:
+```text
+valkey-cluster-0
+valkey-cluster-1
+valkey-cluster-2
+valkey-cluster-3
+valkey-cluster-4
+valkey-cluster-5
+```
 
-- 3 master.
-- 3 replica.
-- Mỗi master có 1 replica, cấu hình bằng `--cluster-replicas 1`.
+Sau khi khởi tạo bằng `--cluster-replicas 1`, cụm sẽ có:
 
-Các thành phần:
+```text
+3 master  : nhận read/write cho các hash slot mà master đó giữ
+3 replica : đồng bộ từ master, dùng cho failover và có thể đọc read-only nếu client hỗ trợ
+```
 
-| Thành phần | Manifest | Mô tả |
-| --- | --- | --- |
-| Namespace | `namespace.yaml` | Tạo namespace `valkey-cluster`. |
-| ConfigMap | `configmap.yaml` | Chứa script khởi động Valkey với `cluster-enabled yes`. |
-| Headless Service | `service-headless.yaml` | Tạo DNS ổn định cho các pod StatefulSet và mở port cluster bus. |
-| StatefulSet | `statefulset.yaml` | Chạy 6 pod Valkey Cluster. |
-| Secret | Tạo bằng lệnh bên dưới | Chứa mật khẩu xác thực Valkey. |
+Valkey Cluster không có một endpoint write duy nhất. Khi ứng dụng ghi một key, cluster client tính key đó thuộc hash slot nào, sau đó gửi request đến master đang giữ slot đó. Nếu topology thay đổi do failover, client sẽ nhận redirect `MOVED`/`ASK`, refresh lại slot mapping và gửi request sang master mới.
 
-Thông tin quan trọng:
+Thông số chính:
 
-- Namespace: `valkey-cluster`
-- StatefulSet: `valkey-cluster`
-- Số pod: `6`
-- Client port: `6379`
-- Cluster bus port: `16379`
-- Image: `valkey/valkey:9.1.0`
-- StorageClass: `longhorn`
-- Dung lượng mỗi PVC: `2Gi`
-- Secret chứa mật khẩu: `valkey-cluster-auth`
+| Thành phần | Giá trị |
+| --- | --- |
+| Namespace | `valkey-cluster` |
+| StatefulSet | `valkey-cluster` |
+| Image | `valkey/valkey:9.1.0` |
+| Client port | `6379` |
+| Cluster bus port | `16379` |
+| Secret password | `valkey-cluster-auth`, key `password` |
+| StorageClass | `longhorn` |
+| PVC mỗi pod | `2Gi` |
 
-## 2. Điều kiện trước khi cài đặt
+## 2. Các Manifest Sử Dụng
+
+| File | Vai trò |
+| --- | --- |
+| `namespace.yaml` | Tạo namespace `valkey-cluster`. |
+| `configmap.yaml` | Chứa script khởi động Valkey với `cluster-enabled yes`. |
+| `service-headless.yaml` | Tạo headless Service để mỗi pod StatefulSet có DNS cố định. |
+| `statefulset.yaml` | Chạy 6 pod Valkey và cấp PVC riêng cho từng pod. |
+| `service-nodeport-dev.yaml` | Tùy chọn: expose từng pod qua NodePort cố định cho dev test từ ngoài cluster. |
+| `test-client.yaml` | Tùy chọn: pod test nội bộ có sẵn `valkey-cli`. |
+
+Nếu cluster không có StorageClass `longhorn`, sửa `storageClassName` trong `statefulset.yaml` trước khi apply.
+
+## 3. Điều Kiện Trước Khi Cài Đặt
 
 Cần có:
 
 - Kubernetes cluster đã sẵn sàng.
-- `kubectl` đã cấu hình đúng context.
-- StorageClass `longhorn` tồn tại nếu giữ nguyên `statefulset.yaml`.
-- Network nội bộ cho phép các pod giao tiếp qua port `6379` và `16379`.
-- Ứng dụng hoặc công cụ kiểm thử hỗ trợ Valkey/Redis Cluster.
+- `kubectl` đang trỏ đúng context.
+- Network nội bộ cho phép các pod Valkey giao tiếp qua port `6379` và `16379`.
+- Ứng dụng/backend dùng client có hỗ trợ Redis Cluster hoặc Valkey Cluster.
 
 Kiểm tra StorageClass:
 
@@ -55,9 +67,7 @@ Kiểm tra StorageClass:
 kubectl get storageclass
 ```
 
-Nếu cluster không có StorageClass `longhorn`, hãy sửa `storageClassName` trong `statefulset.yaml` sang StorageClass phù hợp trước khi apply.
-
-## 3. Tạo namespace và secret
+## 4. Tạo Namespace Và Password
 
 Apply namespace:
 
@@ -65,24 +75,20 @@ Apply namespace:
 kubectl apply -f valkey/cluster/namespace.yaml
 ```
 
-Tạo secret chứa mật khẩu Valkey:
+Tạo Secret chứa password:
 
 ```bash
 kubectl -n valkey-cluster create secret generic valkey-cluster-auth \
   --from-literal=password='CHANGE_ME_STRONG_PASSWORD'
 ```
 
-Nếu secret đã tồn tại và muốn cập nhật mật khẩu:
+Lấy password khi cần test:
 
 ```bash
-kubectl -n valkey-cluster delete secret valkey-cluster-auth
-kubectl -n valkey-cluster create secret generic valkey-cluster-auth \
-  --from-literal=password='CHANGE_ME_STRONG_PASSWORD'
+VALKEY_PASSWORD="$(kubectl -n valkey-cluster get secret valkey-cluster-auth -o jsonpath='{.data.password}' | base64 -d)"
 ```
 
-Lưu ý: Nếu đổi mật khẩu sau khi cụm đã chạy, cần restart các pod Valkey để đọc lại secret.
-
-## 4. Apply manifest
+## 5. Apply Manifest
 
 Chạy từ thư mục gốc repo:
 
@@ -92,13 +98,7 @@ kubectl apply -f valkey/cluster/service-headless.yaml
 kubectl apply -f valkey/cluster/statefulset.yaml
 ```
 
-Theo dõi pod:
-
-```bash
-kubectl -n valkey-cluster get pods -w
-```
-
-Hoặc đợi tất cả pod sẵn sàng:
+Đợi pod sẵn sàng:
 
 ```bash
 kubectl -n valkey-cluster wait --for=condition=Ready pod \
@@ -106,37 +106,21 @@ kubectl -n valkey-cluster wait --for=condition=Ready pod \
   --timeout=300s
 ```
 
-Kết quả mong đợi:
-
-```text
-valkey-cluster-0    1/1     Running
-valkey-cluster-1    1/1     Running
-valkey-cluster-2    1/1     Running
-valkey-cluster-3    1/1     Running
-valkey-cluster-4    1/1     Running
-valkey-cluster-5    1/1     Running
-```
-
-Kiểm tra service và PVC:
+Kiểm tra:
 
 ```bash
+kubectl -n valkey-cluster get pods -o wide
 kubectl -n valkey-cluster get svc
 kubectl -n valkey-cluster get pvc
 ```
 
-## 5. Khởi tạo Valkey Cluster
+## 6. Khởi Tạo Valkey Cluster Lần Đầu
 
-Sau khi 6 pod đã chạy, cần chạy lệnh `--cluster create` một lần để tạo cluster và phân bổ hash slot.
-
-Lấy mật khẩu từ secret:
+Sau khi 6 pod Running, các pod mới chỉ chạy Valkey ở cluster mode. Cần tạo cluster và phân bổ slot một lần:
 
 ```bash
 VALKEY_PASSWORD="$(kubectl -n valkey-cluster get secret valkey-cluster-auth -o jsonpath='{.data.password}' | base64 -d)"
-```
 
-Khởi tạo cluster với 3 master và 3 replica:
-
-```bash
 kubectl -n valkey-cluster exec -it valkey-cluster-0 -- sh -c "
 yes yes | valkey-cli -a \"$VALKEY_PASSWORD\" --cluster create \
   valkey-cluster-0.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379 \
@@ -149,55 +133,36 @@ yes yes | valkey-cli -a \"$VALKEY_PASSWORD\" --cluster create \
 "
 ```
 
-Lưu ý:
+Không chạy lại lệnh này trên cùng PVC đã có cluster. Nếu muốn dựng lại từ đầu, xóa StatefulSet và PVC cũ trước.
 
-- Lệnh này chỉ chạy sau khi các pod chưa được tạo cluster.
-- Nếu đã tạo cluster trước đó, không chạy lại `--cluster create` trên cùng dữ liệu PVC.
-- Nếu muốn tạo lại từ đầu, cần xóa StatefulSet và PVC cũ trước.
+## 7. Kiểm Tra Cluster
 
-## 6. Kiểm tra trạng thái cluster
-
-Kiểm tra thông tin cluster:
+Kiểm tra trạng thái:
 
 ```bash
 kubectl -n valkey-cluster exec valkey-cluster-0 -- sh -c \
   "valkey-cli -a \"$VALKEY_PASSWORD\" cluster info"
 ```
 
-Kết quả mong đợi có dòng:
+Kết quả mong đợi:
 
 ```text
 cluster_state:ok
 ```
 
-Kiểm tra danh sách node:
+Xem master, replica và slot:
 
 ```bash
 kubectl -n valkey-cluster exec valkey-cluster-0 -- sh -c \
   "valkey-cli -a \"$VALKEY_PASSWORD\" cluster nodes"
 ```
 
-Kiểm tra phân bổ slot:
-
-```bash
-kubectl -n valkey-cluster exec valkey-cluster-0 -- sh -c \
-  "valkey-cli -a \"$VALKEY_PASSWORD\" cluster slots"
-```
-
-## 7. Kiểm tra ghi đọc dữ liệu
-
-Khi test với Valkey Cluster, cần dùng option `-c` để `valkey-cli` tự đi theo redirect giữa các node.
-
-Ghi dữ liệu:
+Test ghi/đọc bằng cluster mode:
 
 ```bash
 kubectl -n valkey-cluster exec valkey-cluster-0 -- sh -c \
   "valkey-cli -c -a \"$VALKEY_PASSWORD\" set cluster_test ok"
-```
 
-Đọc dữ liệu:
-
-```bash
 kubectl -n valkey-cluster exec valkey-cluster-1 -- sh -c \
   "valkey-cli -c -a \"$VALKEY_PASSWORD\" get cluster_test"
 ```
@@ -208,135 +173,197 @@ Kết quả mong đợi:
 ok
 ```
 
-Kiểm tra key thuộc slot nào:
+## 8. Cách Ứng Dụng Kết Nối
 
-```bash
-kubectl -n valkey-cluster exec valkey-cluster-0 -- sh -c \
-  "valkey-cli -a \"$VALKEY_PASSWORD\" cluster keyslot cluster_test"
-```
-
-## 8. Kiểm tra failover
-
-Xem master và replica hiện tại:
-
-```bash
-kubectl -n valkey-cluster exec valkey-cluster-0 -- sh -c \
-  "valkey-cli -a \"$VALKEY_PASSWORD\" cluster nodes"
-```
-
-Chọn một pod đang là master rồi xóa pod đó để giả lập sự cố. Ví dụ:
-
-```bash
-kubectl -n valkey-cluster delete pod valkey-cluster-0
-```
-
-Theo dõi pod được tạo lại:
-
-```bash
-kubectl -n valkey-cluster get pods -w
-```
-
-Kiểm tra lại trạng thái cluster:
-
-```bash
-kubectl -n valkey-cluster exec valkey-cluster-1 -- sh -c \
-  "valkey-cli -a \"$VALKEY_PASSWORD\" cluster info"
-```
-
-Kết quả mong đợi:
-
-```text
-cluster_state:ok
-```
-
-Kiểm tra node nào đang là master:
-
-```bash
-kubectl -n valkey-cluster exec valkey-cluster-1 -- sh -c \
-  "valkey-cli -a \"$VALKEY_PASSWORD\" cluster nodes"
-```
-
-Lưu ý: Sau failover, replica của master bị lỗi sẽ được promote thành master. Pod cũ khi quay lại có thể trở thành replica.
-
-## 9. Cấu hình ứng dụng kết nối
-
-Ứng dụng phải dùng client hỗ trợ Valkey/Redis Cluster.
-
-Endpoint nội bộ có thể dùng:
+Ứng dụng chạy trong Kubernetes nên dùng Cluster client và truyền một vài startup node:
 
 ```text
 valkey-cluster-0.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379
 valkey-cluster-1.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379
 valkey-cluster-2.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379
-valkey-cluster-3.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379
-valkey-cluster-4.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379
-valkey-cluster-5.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379
 ```
 
-Thông tin cấu hình dạng khái niệm:
+Có thể truyền cả 6 node. Startup node chỉ là cửa vào ban đầu để client hỏi topology. Ứng dụng không cần và không nên hardcode node nào là master.
+
+Ví dụ Node.js với `ioredis` trong Kubernetes:
+
+```js
+const Redis = require("ioredis");
+
+const redis = new Redis.Cluster(
+  [
+    { host: "valkey-cluster-0.valkey-cluster-headless.valkey-cluster.svc.cluster.local", port: 6379 },
+    { host: "valkey-cluster-1.valkey-cluster-headless.valkey-cluster.svc.cluster.local", port: 6379 },
+    { host: "valkey-cluster-2.valkey-cluster-headless.valkey-cluster.svc.cluster.local", port: 6379 },
+  ],
+  {
+    redisOptions: {
+      password: process.env.VALKEY_PASSWORD,
+    },
+  }
+);
+```
+
+## 9. Dev Test Từ Ngoài Kubernetes
+
+Valkey Cluster trả topology nội bộ của Kubernetes. Vì vậy GUI/app local nếu chỉ connect một NodePort có thể fail khi bị redirect sang DNS hoặc Pod IP nội bộ. Cách tốt nhất để test cluster là chạy client trong Kubernetes, hoặc dùng client local có NAT mapping.
+
+Apply NodePort dev nếu cần test từ ngoài cluster:
+
+```bash
+kubectl apply -f valkey/cluster/service-nodeport-dev.yaml
+```
+
+Mapping mặc định:
+
+| Pod | NodePort |
+| --- | --- |
+| `valkey-cluster-0` | `31000` |
+| `valkey-cluster-1` | `31001` |
+| `valkey-cluster-2` | `31002` |
+| `valkey-cluster-3` | `31003` |
+| `valkey-cluster-4` | `31004` |
+| `valkey-cluster-5` | `31005` |
+
+Lấy node IP:
+
+```bash
+kubectl get nodes -o wide
+```
+
+Ví dụ node IP là `172.23.0.46`, app local dùng startup nodes:
 
 ```text
-cluster_enabled=true
-startup_nodes=valkey-cluster-0.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379,valkey-cluster-1.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379,valkey-cluster-2.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379
-password=<password trong secret valkey-cluster-auth>
+172.23.0.46:31000
+172.23.0.46:31001
+172.23.0.46:31002
+172.23.0.46:31003
+172.23.0.46:31004
+172.23.0.46:31005
 ```
 
-Không dùng connection string kiểu single-node nếu ứng dụng cần ghi đọc trên toàn bộ cluster. Client phải hiểu hash slot và redirect.
+Với `ioredis`, cần cấu hình `natMap` để map DNS nội bộ sang NodePort:
 
-## 10. Vận hành cơ bản
+```js
+const Redis = require("ioredis");
+const nodeIp = "172.23.0.46";
 
-Xem log một pod:
+const redis = new Redis.Cluster(
+  [
+    { host: nodeIp, port: 31000 },
+    { host: nodeIp, port: 31001 },
+    { host: nodeIp, port: 31002 },
+    { host: nodeIp, port: 31003 },
+    { host: nodeIp, port: 31004 },
+    { host: nodeIp, port: 31005 },
+  ],
+  {
+    redisOptions: {
+      password: process.env.VALKEY_PASSWORD,
+    },
+    natMap: {
+      "valkey-cluster-0.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31000 },
+      "valkey-cluster-1.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31001 },
+      "valkey-cluster-2.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31002 },
+      "valkey-cluster-3.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31003 },
+      "valkey-cluster-4.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31004 },
+      "valkey-cluster-5.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31005 },
+    },
+  }
+);
+```
+
+NodePort chỉ nên dùng trong mạng nội bộ cho dev/test, không expose ra Internet.
+
+## 10. Pod Test Nội Bộ
+
+Nếu muốn test đúng cluster topology mà không cần cài CLI trên máy local:
+
+```bash
+kubectl apply -f valkey/cluster/test-client.yaml
+kubectl -n valkey-cluster exec -it valkey-cluster-test-client -- sh
+```
+
+Trong pod test:
+
+```sh
+valkey-cli -c \
+  -h valkey-cluster-0.valkey-cluster-headless.valkey-cluster.svc.cluster.local \
+  -p 6379 \
+  -a "$VALKEY_PASSWORD" \
+  SET dev_test "hello_from_test_client"
+
+valkey-cli -c \
+  -h valkey-cluster-1.valkey-cluster-headless.valkey-cluster.svc.cluster.local \
+  -p 6379 \
+  -a "$VALKEY_PASSWORD" \
+  GET dev_test
+```
+
+Xóa pod test khi xong:
+
+```bash
+kubectl delete -f valkey/cluster/test-client.yaml
+```
+
+## 11. Failover Hoạt Động Như Nào
+
+Mỗi master có một replica. Khi master chết đủ lâu để cluster đánh dấu fail, replica của master đó sẽ được promote thành master mới và nhận các slot của master cũ.
+
+Ví dụ nếu hiện tại:
+
+```text
+valkey-cluster-0 master, slot 0-5460
+valkey-cluster-4 replica của valkey-cluster-0
+```
+
+Khi `valkey-cluster-0` failover thành công:
+
+```text
+valkey-cluster-4 thành master cho slot 0-5460
+valkey-cluster-0 khi quay lại thường sẽ thành replica của valkey-cluster-4
+```
+
+Master cũ không tự động giành lại vai trò master. Đây là hành vi bình thường để cluster ổn định.
+
+Test failover:
+
+```bash
+kubectl -n valkey-cluster exec valkey-cluster-0 -- sh -c \
+  "valkey-cli -a \"$VALKEY_PASSWORD\" cluster nodes"
+
+kubectl -n valkey-cluster delete pod valkey-cluster-0
+
+kubectl -n valkey-cluster get pods -w
+
+kubectl -n valkey-cluster exec valkey-cluster-1 -- sh -c \
+  "valkey-cli -a \"$VALKEY_PASSWORD\" cluster nodes"
+```
+
+## 12. Vận Hành Cơ Bản
+
+Xem log:
 
 ```bash
 kubectl -n valkey-cluster logs valkey-cluster-0
 ```
 
-Xem trạng thái StatefulSet:
-
-```bash
-kubectl -n valkey-cluster get statefulset valkey-cluster
-```
-
-Restart toàn bộ StatefulSet:
+Restart StatefulSet:
 
 ```bash
 kubectl -n valkey-cluster rollout restart statefulset valkey-cluster
 ```
 
-Kiểm tra cấu hình cluster trong một pod:
+Xem cấu hình trong pod:
 
 ```bash
-kubectl -n valkey-cluster exec valkey-cluster-0 -- sh -c \
-  "cat /data/valkey.conf"
+kubectl -n valkey-cluster exec valkey-cluster-0 -- sh -c "cat /data/valkey.conf"
+kubectl -n valkey-cluster exec valkey-cluster-0 -- sh -c "cat /data/nodes.conf"
 ```
 
-Kiểm tra file node cluster:
+Nếu đổi password trong Secret, cần restart StatefulSet để pod đọc lại Secret.
 
-```bash
-kubectl -n valkey-cluster exec valkey-cluster-0 -- sh -c \
-  "cat /data/nodes.conf"
-```
-
-## 11. Mở rộng cluster
-
-Để mở rộng Valkey Cluster, không chỉ scale StatefulSet là đủ. Cần thêm node rồi dùng lệnh cluster để gán slot hoặc thêm replica.
-
-Ví dụ scale StatefulSet lên 8 pod:
-
-```bash
-kubectl -n valkey-cluster scale statefulset valkey-cluster --replicas=8
-```
-
-Sau đó cần dùng các lệnh như:
-
-```bash
-valkey-cli --cluster add-node ...
-valkey-cli --cluster reshard ...
-```
-
-Khuyến nghị: Trước khi mở rộng production, cần có kế hoạch reshard, kiểm tra backup và test trên môi trường staging.
-
-## 12. Gỡ cài đặt
+## 13. Gỡ Cài Đặt
 
 Xóa workload:
 
@@ -344,15 +371,10 @@ Xóa workload:
 kubectl delete -f valkey/cluster/statefulset.yaml
 kubectl delete -f valkey/cluster/service-headless.yaml
 kubectl delete -f valkey/cluster/configmap.yaml
-```
-
-Xóa secret:
-
-```bash
 kubectl -n valkey-cluster delete secret valkey-cluster-auth
 ```
 
-PVC của StatefulSet thường không bị xóa tự động. Nếu chắc chắn không cần dữ liệu nữa, xóa PVC:
+PVC của StatefulSet không bị xóa tự động. Chỉ xóa khi chắc chắn không cần dữ liệu:
 
 ```bash
 kubectl -n valkey-cluster delete pvc \
@@ -367,15 +389,14 @@ kubectl -n valkey-cluster delete pvc \
 Xóa namespace:
 
 ```bash
-kubectl delete -f valkey/cluster/namespace.yaml
+kubectl delete namespace valkey-cluster
 ```
 
-## 13. Lưu ý quan trọng
+## 14. Lưu Ý Quan Trọng
 
-- Valkey Cluster cần tối thiểu 3 master để phân bổ đủ `16384` hash slot.
-- Với `--cluster-replicas 1`, cần tổng cộng 6 node để có 3 master và 3 replica.
-- Cần mở cả port `6379` và `16379` giữa các pod trong cluster.
-- Không dùng Sentinel cho mô hình này.
+- Cần tối thiểu 3 master để Valkey Cluster phân phối đủ `16384` hash slot.
+- Với `--cluster-replicas 1`, cần 6 node để có 3 master và 3 replica.
+- Cần mở cả port `6379` và `16379` giữa các pod.
+- Replication là asynchronous, nên vẫn có khả năng mất một phần write rất mới nếu master chết trước khi kịp replicate.
+- Các lệnh multi-key chỉ an toàn khi key nằm cùng hash slot. Dùng hash tag nếu cần, ví dụ `user:{1001}:profile`, `user:{1001}:cart`.
 - Không expose Valkey Cluster trực tiếp ra Internet.
-- Nếu dùng NetworkPolicy, cần cho phép traffic giữa các pod `app=valkey-cluster`.
-- Backup cần bao gồm dữ liệu trên tất cả PVC, không chỉ một pod.
