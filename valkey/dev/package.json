@@ -1,0 +1,12 @@
+{
+  "name": "valkey-cluster-dev-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Connect to Valkey Cluster through one APISIX startup endpoint",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ioredis": "^5.7.0"
+  }
+}

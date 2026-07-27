@@ -204,26 +204,30 @@ const redis = new Redis.Cluster(
 );
 ```
 
-## 9. Dev Test Từ Ngoài Kubernetes
+## 9. Truy Cập Từ Ngoài Kubernetes Qua NodePort
 
-Valkey Cluster trả topology nội bộ của Kubernetes. Vì vậy GUI/app local nếu chỉ connect một NodePort có thể fail khi bị redirect sang DNS hoặc Pod IP nội bộ. Cách tốt nhất để test cluster là chạy client trong Kubernetes, hoặc dùng client local có NAT mapping.
+Valkey được cấu hình để announce IP của Kubernetes node đang chạy pod và NodePort riêng của từng pod. `status.hostIP` được inject tự động qua Downward API, nên không hardcode một node cố định. Vì endpoint trả về từ `CLUSTER SLOTS` đã truy cập được từ ngoài Kubernetes, các Cluster client không cần `natMap`.
 
-Apply NodePort dev nếu cần test từ ngoài cluster:
+Đảm bảo IP của tất cả Kubernetes node đều truy cập được từ ứng dụng bên ngoài. Sau đó apply NodePort và rollout cấu hình:
 
 ```bash
 kubectl apply -f valkey/cluster/service-nodeport-dev.yaml
+kubectl apply -f valkey/cluster/configmap.yaml
+kubectl apply -f valkey/cluster/statefulset.yaml
+kubectl -n valkey-cluster rollout restart statefulset/valkey-cluster
+kubectl -n valkey-cluster rollout status statefulset/valkey-cluster
 ```
 
 Mapping mặc định:
 
-| Pod | NodePort |
-| --- | --- |
-| `valkey-cluster-0` | `31000` |
-| `valkey-cluster-1` | `31001` |
-| `valkey-cluster-2` | `31002` |
-| `valkey-cluster-3` | `31003` |
-| `valkey-cluster-4` | `31004` |
-| `valkey-cluster-5` | `31005` |
+| Pod | Client NodePort | Cluster-bus NodePort |
+| --- | --- | --- |
+| `valkey-cluster-0` | `31000` | `32000` |
+| `valkey-cluster-1` | `31001` | `32001` |
+| `valkey-cluster-2` | `31002` | `32002` |
+| `valkey-cluster-3` | `31003` | `32003` |
+| `valkey-cluster-4` | `31004` | `32004` |
+| `valkey-cluster-5` | `31005` | `32005` |
 
 Lấy node IP:
 
@@ -242,38 +246,24 @@ Ví dụ node IP là `172.23.0.46`, app local dùng startup nodes:
 172.23.0.46:31005
 ```
 
-Với `ioredis`, cần cấu hình `natMap` để map DNS nội bộ sang NodePort:
+Chạy test ngoài cluster; client chỉ cần các NodePort làm startup nodes và không cần quyền truy cập Kubernetes:
 
-```js
-const Redis = require("ioredis");
-const nodeIp = "172.23.0.46";
+```bash
+cd valkey/test
 
-const redis = new Redis.Cluster(
-  [
-    { host: nodeIp, port: 31000 },
-    { host: nodeIp, port: 31001 },
-    { host: nodeIp, port: 31002 },
-    { host: nodeIp, port: 31003 },
-    { host: nodeIp, port: 31004 },
-    { host: nodeIp, port: 31005 },
-  ],
-  {
-    redisOptions: {
-      password: process.env.VALKEY_PASSWORD,
-    },
-    natMap: {
-      "valkey-cluster-0.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31000 },
-      "valkey-cluster-1.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31001 },
-      "valkey-cluster-2.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31002 },
-      "valkey-cluster-3.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31003 },
-      "valkey-cluster-4.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31004 },
-      "valkey-cluster-5.valkey-cluster-headless.valkey-cluster.svc.cluster.local:6379": { host: nodeIp, port: 31005 },
-    },
-  }
-);
+export VALKEY_PASSWORD="$(
+  kubectl -n valkey-cluster get secret valkey-cluster-auth \
+    -o jsonpath='{.data.password}' | base64 -d
+)"
+export VALKEY_NODE_IP="172.23.0.46"
+
+npm install
+node test-cluster-nodejs.js
 ```
 
 NodePort chỉ nên dùng trong mạng nội bộ cho dev/test, không expose ra Internet.
+
+FQDN headless vẫn nghe tại `:6379` và dùng được làm startup node từ trong Kubernetes. Sau lần đọc topology đầu tiên, Cluster client sẽ dùng các endpoint `hostIP:NodePort` được announce. Vì cluster-bus cũng đi qua NodePort, các node/pod phải truy cập được IP của nhau. Nếu mạng ngoài không route được tới toàn bộ node IP, production nên dùng các địa chỉ LoadBalancer ổn định thay cho NodePort.
 
 ## 10. Pod Test Nội Bộ
 

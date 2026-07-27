@@ -1,0 +1,315 @@
+# falco-values.yaml
+# Falco chart 9.1.0 / Falco 0.44.1
+# Runtime syscall monitoring + Kubernetes Audit Events.
+
+driver:
+  enabled: true
+  kind: auto
+
+controller:
+  kind: daemonset
+
+# Rules below WARNING are ignored. All Telegram audit rules in this file use
+# WARNING so they are not filtered out.
+priority: warning
+
+rules:
+  - disable:
+      rule: Contact K8S API Server From Container
+
+collectcontainerdefaults: true
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+containerd:
+  socket: /run/k3s/containerd/containerd.sock
+
+# Install the official Falco syscall rules and Kubernetes Audit plugin/rules
+# versions recommended by Falco chart 9.1.0.
+falcoctl:
+  artifact:
+    install:
+      enabled: true
+    follow:
+      enabled: true
+  config:
+    artifact:
+      install:
+        refs:
+          - falco-rules:5
+          - k8saudit-rules:0.16
+          - k8saudit:0.16
+      follow:
+        refs:
+          - falco-rules:5
+          - k8saudit-rules:0.16
+          - k8saudit:0.16
+
+# K3s API server must send audit events to:
+# http://<ANY_CLUSTER_NODE_IP>:30007/k8s-audit
+services:
+  - name: k8saudit-webhook
+    type: NodePort
+    ports:
+      - port: 9765
+        nodePort: 30007
+        protocol: TCP
+
+falco:
+  rules_files:
+    - /etc/falco/falco_rules.yaml
+    - /etc/falco/k8s_audit_rules.yaml
+    - /etc/falco/rules.d
+
+  plugins:
+    - name: k8saudit
+      library_path: libk8saudit.so
+      init_config: ""
+      open_params: "http://:9765/k8s-audit"
+    - name: json
+      library_path: libjson.so
+      init_config: ""
+
+  load_plugins:
+    - k8saudit
+    - json
+
+falcosidekick:
+  enabled: true
+
+  webui:
+    enabled: true
+
+    # Keep events for seven days instead of forever.
+    ttl: 604800
+
+    redis:
+      storageEnabled: true
+      storageClass: longhorn
+      storageSize: 5Gi
+      resources:
+        requests:
+          cpu: 250m
+          memory: 2Gi
+        limits:
+          cpu: "2"
+          memory: 4Gi
+
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  config:
+    telegram:
+      token: "8715216441:AAFd_wEAn8reKnSEB3tJ_yc_4lqFskVcHaI"
+      chatid: "7524643345"
+      minimumpriority: "warning"
+
+customRules:
+  vnpost-k8s-human-user-only.yaml: |-
+    # =========================================================
+    # Human-user filters
+    # =========================================================
+
+    - list: vnpost_k8s_automation_users
+      items:
+        - argocd
+        - argocd-server
+        - gitlab-runner
+        - jenkins
+        - fleet-controller
+        - rancher
+
+    - macro: vnpost_human_k8s_user
+      condition: >
+        ka.user.name exists
+        and ka.user.name != ""
+        and not ka.user.name startswith "system:"
+        and not ka.user.name startswith "system:serviceaccount:"
+        and not ka.user.name startswith "system:node:"
+        and not ka.user.name in (vnpost_k8s_automation_users)
+
+    - macro: vnpost_k8s_success
+      condition: ka.response.code startswith 2
+
+    - macro: vnpost_k8s_response_complete
+      condition: jevt.value[/stage] = "ResponseComplete"
+
+    - list: vnpost_k8s_write_verbs
+      items:
+        - create
+        - update
+        - patch
+        - delete
+        - deletecollection
+
+    - list: vnpost_k8s_noisy_resources
+      items:
+        - events
+        - leases
+        - endpoints
+        - endpointslices
+        - tokenreviews
+        - subjectaccessreviews
+        - selfsubjectaccessreviews
+        - selfsubjectrulesreviews
+
+    - macro: vnpost_kubectl_rollout_restart
+      condition: >
+        jevt.value[/requestObject/spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt] exists
+
+    # =========================================================
+    # Interactive pod access
+    # =========================================================
+
+    - rule: VNPost K8s Human User Exec Pod
+      desc: Detect a human user executing a command in a pod
+      condition: >
+        vnpost_human_k8s_user
+        and ka.target.resource = pods
+        and ka.target.subresource = exec
+      output: >
+        K8S EXEC |
+        pod=%ka.target.namespace/%ka.target.name |
+        user=%ka.user.name |
+        command=%ka.uri.param[command]
+      priority: WARNING
+      source: k8s_audit
+      tags: [k8s, audit, user-action, exec]
+
+    - rule: VNPost K8s Human User Attach Pod
+      desc: Detect a human user attaching to a pod
+      condition: >
+        vnpost_human_k8s_user
+        and ka.target.resource = pods
+        and ka.target.subresource = attach
+      output: >
+        K8S ATTACH |
+        pod=%ka.target.namespace/%ka.target.name |
+        user=%ka.user.name
+      priority: WARNING
+      source: k8s_audit
+      tags: [k8s, audit, user-action, attach]
+
+    - rule: VNPost K8s Human User PortForward Pod
+      desc: Detect a human user port-forwarding to a pod
+      condition: >
+        vnpost_human_k8s_user
+        and ka.target.resource = pods
+        and ka.target.subresource = portforward
+      output: >
+        K8S PORT-FORWARD |
+        pod=%ka.target.namespace/%ka.target.name |
+        user=%ka.user.name
+      priority: WARNING
+      source: k8s_audit
+      tags: [k8s, audit, user-action, portforward]
+
+    # =========================================================
+    # Workload operations
+    # =========================================================
+
+    - rule: VNPost K8s Human User Rollout Restart
+      desc: Detect a successful kubectl rollout restart
+      condition: >
+        vnpost_k8s_response_complete
+        and vnpost_human_k8s_user
+        and vnpost_k8s_success
+        and ka.verb in (update, patch)
+        and ka.target.resource in (deployments, statefulsets, daemonsets)
+        and vnpost_kubectl_rollout_restart
+      output: >
+        K8S ROLLOUT RESTART |
+        object=%ka.target.resource/%ka.target.name |
+        namespace=%ka.target.namespace |
+        user=%ka.user.name |
+        result=success
+      priority: WARNING
+      source: k8s_audit
+      tags: [k8s, audit, user-action, rollout]
+
+    - rule: VNPost K8s Human User Scale Workload
+      desc: Detect a successful workload scale operation
+      condition: >
+        vnpost_k8s_response_complete
+        and vnpost_human_k8s_user
+        and vnpost_k8s_success
+        and ka.verb in (update, patch)
+        and ka.target.subresource = scale
+        and ka.target.resource in (deployments, statefulsets, replicasets)
+      output: >
+        K8S SCALE |
+        object=%ka.target.resource/%ka.target.name |
+        namespace=%ka.target.namespace |
+        user=%ka.user.name |
+        result=success
+      priority: WARNING
+      source: k8s_audit
+      tags: [k8s, audit, user-action, scale]
+
+    # =========================================================
+    # Sensitive reads
+    # =========================================================
+
+    - rule: VNPost K8s Human User Read Secret
+      desc: Detect a human user reading Kubernetes secrets
+      condition: >
+        vnpost_k8s_response_complete
+        and vnpost_human_k8s_user
+        and vnpost_k8s_success
+        and ka.target.resource = secrets
+        and ka.verb in (get, list)
+      output: >
+        K8S SECRET READ |
+        secret=%ka.target.namespace/%ka.target.name |
+        action=%ka.verb |
+        user=%ka.user.name |
+        result=success
+      priority: WARNING
+      source: k8s_audit
+      tags: [k8s, audit, user-action, secret]
+
+    # =========================================================
+    # All successful resource changes by human users
+    # =========================================================
+
+    - rule: VNPost K8s Human User Resource Change
+      desc: Report successful create, update, patch, delete, and deletecollection operations
+      condition: >
+        vnpost_k8s_response_complete
+        and vnpost_human_k8s_user
+        and vnpost_k8s_success
+        and ka.verb in (vnpost_k8s_write_verbs)
+        and not ka.target.resource in (vnpost_k8s_noisy_resources)
+        and (
+          not ka.target.subresource exists
+          or not ka.target.subresource in (status)
+        )
+        and not (
+          ka.target.subresource = scale
+          and ka.target.resource in (deployments, statefulsets, replicasets)
+        )
+        and not (
+          ka.target.resource in (deployments, statefulsets, daemonsets)
+          and vnpost_kubectl_rollout_restart
+        )
+      output: >
+        K8S CHANGE |
+        action=%ka.verb |
+        object=%ka.target.resource/%ka.target.name |
+        namespace=%ka.target.namespace |
+        user=%ka.user.name |
+        result=success (%ka.response.code)
+      priority: WARNING
+      source: k8s_audit
+      tags: [k8s, audit, user-action, resource-change]

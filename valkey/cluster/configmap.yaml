@@ -10,7 +10,11 @@ data:
 
     PASSWORD="$(cat /etc/valkey-secret/password)"
     POD_NAME="$(hostname)"
-    HEADLESS="valkey-cluster-headless.valkey-cluster.svc.cluster.local"
+    POD_ORDINAL="${POD_NAME##*-}"
+    ANNOUNCE_PORT="$((31000 + POD_ORDINAL))"
+    ANNOUNCE_BUS_PORT="$((32000 + POD_ORDINAL))"
+
+    : "${VALKEY_ANNOUNCE_IP:?VALKEY_ANNOUNCE_IP is required}"
 
     cat > /data/valkey.conf <<CONF
     port 6379
@@ -28,9 +32,9 @@ data:
     cluster-config-file /data/nodes.conf
     cluster-node-timeout 5000
 
-    cluster-announce-hostname ${POD_NAME}.${HEADLESS}
-    cluster-announce-port 6379
-    cluster-announce-bus-port 16379
+    cluster-announce-ip ${VALKEY_ANNOUNCE_IP}
+    cluster-announce-port ${ANNOUNCE_PORT}
+    cluster-announce-bus-port ${ANNOUNCE_BUS_PORT}
 
     tcp-keepalive 60
     timeout 0

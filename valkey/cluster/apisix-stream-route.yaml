@@ -1,0 +1,16 @@
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: valkey-cluster-bootstrap
+  namespace: valkey-cluster
+spec:
+  ingressClassName: apisix
+  stream:
+    - name: valkey-cluster-bootstrap
+      protocol: TCP
+      match:
+        ingressPort: 9000
+      backend:
+        serviceName: valkey-cluster-bootstrap
+        servicePort: 6379
+        resolveGranularity: endpoint

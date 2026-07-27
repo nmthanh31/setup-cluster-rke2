@@ -19,6 +19,13 @@ spec:
         - name: valkey
           image: valkey/valkey:9.1.0
           imagePullPolicy: IfNotPresent
+          env:
+            # NodePort is reachable on every node. Announce the IP of the node
+            # currently hosting this pod instead of hardcoding one cluster node.
+            - name: VALKEY_ANNOUNCE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
           command:
             - /bin/sh
             - /scripts/start-valkey-cluster.sh

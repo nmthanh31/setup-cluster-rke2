@@ -4,13 +4,16 @@ apisix:
 
 # Define the stream ports APISIX will listen on
 service:
+  # Expose APISIX through every Kubernetes node.
+  # Kubernetes assigns a NodePort for stream port 9000. Retrieve it with:
+  # kubectl -n apisix get svc apisix-gateway \
+  #   -o jsonpath="{.spec.ports[?(@.port==9000)].nodePort}"
+  type: NodePort
+  externalTrafficPolicy: Cluster
   http:
     enabled: true
   stream:
     enabled: true
     tcp:
-      # Expose port 9000 for your TCP traffic
+      # APISIX TCP listener used as the Valkey Cluster bootstrap endpoint.
       - port: 9000
-    udp:
-      # Expose port 9001 for your UDP traffic (if needed)
-      - port: 9001
